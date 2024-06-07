@@ -1,0 +1,177 @@
+{% extends "base_and_header.html" %}
+{% load custom_filters %}
+{% load static %}
+{% block content %}
+    <style>
+        td,
+        th {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        table,
+        label.btn,
+        button,
+        .modal-body {
+            font-size: large !important;
+        }
+
+        .eol {
+            text-align: center;
+        }
+
+        .btn-action {
+            width: 50%;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            z-index: 1;
+        }
+
+        .table-container {
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+
+        .btn-actions {
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: center;
+            flex-direction: row;
+            gap: 5px;
+        }
+
+        .modal-footer {
+            justify-content: space-between;
+        }
+    </style>
+    <main class="container">
+        <div class="main-wrapper justify-content-center">
+            <div class="d-flex">
+                <h1>Staff Rates List.</h1>
+            </div>
+            <div class="table-container">
+                <table class="table table-hover">
+                    <thead class="sticky-header">
+                        <tr>
+                            <th>Rate Type</th>
+                            <th>Rate per Hour</th>
+                            <th>Wage per Hour</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    {% for rate in rates %}
+                        <tr>
+                            <td>{{ rate.rate_type|title }}</td>
+                            <td>{{ rate.rate_per_hr |add_currency_symbol }}</td>
+                            <td>{{ rate.wage_per_hr |add_currency_symbol }}</td>
+                            <td class="btn-actions">
+                                <!-- Edit button for each staff rate -->
+                                <button type="button"
+                                        class="btn btn-main btn-action"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editStaffRateModal{{ rate.staff_rate_id }}">Edit</button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            <div>
+                {% if messages %}
+                    <div class="error-message mb-3">
+                        {% for message in messages %}
+                            {% if message == error %}
+                                <div class="d-flex justify-content-center align-items-center"
+                                     style="color:red">{{ message }}</div>
+                            {% else %}
+                                <div class="d-flex justify-content-center align-items-center"
+                                     style="color:green">{{ message }}</div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            <div class="d-flex justify-content-between">
+                <button type="button"
+                        class="btn btn-main btn-lg mb-4"
+                        onclick="navigateToUrl('{% url 'admin_main' %}')">Back</button>
+            </div>
+        </div>
+    </main>
+    <!-- Add a modal for editing staff rates -->
+    {% for rate in rates %}
+        <div class="modal fade"
+             id="editStaffRateModal{{ rate.staff_rate_id }}"
+             tabindex="-1"
+             aria-labelledby="editStaffRateModalLabel{{ rate.staff_rate_id }}"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <!-- Form for editing staff rate -->
+                    <form id="editStaffRateForm{{ rate.staff_rate_id }}"
+                          action="{% url 'edit_staff_rate' rate.staff_rate_id %}"
+                          method="post">
+                        <div class="modal-header">
+                            <h5 class="modal-title"
+                                id="editStaffRateModalLabel{{ rate.staff_rate_id }}">
+                                Edit {{ rate.rate_type|title }} Rate
+                            </h5>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            {% csrf_token %}
+                            <!-- Hidden input field to store staff rate ID -->
+                            <input type="hidden"
+                                   id="staffRateId{{ rate.staff_rate_id }}"
+                                   name="staff_rate_id"
+                                   value="{{ rate.staff_rate_id }}" />
+                            <input type="hidden"
+                                   class="form-control"
+                                   id="rateType{{ rate.staff_rate_id }}"
+                                   name="rateType"
+                                   value="{{ rate.rate_type }}"
+                                   required />
+                            <div class="mb-3">
+                                <label for="ratePerHr" class="form-label">Rate per Hour (£)</label>
+                                <input type="number"
+                                       class="form-control"
+                                       id="ratePerHr{{ rate.staff_rate_id }}"
+                                       name="ratePerHr"
+                                       value="{{ rate.rate_per_hr }}"
+                                       min="1"
+                                        max="99999"
+                                       required />
+                            </div>
+                            <div class="mb-3">
+                                <label for="wagePerHr" class="form-label">Wage per Hour (£)</label>
+                                <input type="number"
+                                       class="form-control"
+                                       id="wagePerHr{{ rate.staff_rate_id }}"
+                                       name="wagePerHr"
+                                       value="{{ rate.wage_per_hr }}"
+                                       min="1"
+                                        max="99999"
+                                       required />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-main" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-main">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+    <script>
+    function navigateToUrl(url) {
+        window.location.href = url;
+    }
+    </script>
+{% endblock %}

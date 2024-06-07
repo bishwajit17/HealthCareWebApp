@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block content_base %}
+  <style>
+      .form-signin .top {
+          margin-bottom: -1px;
+          border-bottom-right-radius: 0;
+          border-bottom-left-radius: 0;
+      }
+
+      .form-signin .middle {
+          margin-bottom: -1px;
+          border-radius: 0;
+      }
+
+      .form-signin .bottom {
+          border-top-right-radius: 0;
+          border-top-left-radius: 0;
+      }
+
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+      }
+
+      input[type="number"] {
+          -moz-appearance: textfield;
+          /* Firefox */
+      }
+
+      .error-message {
+          color: red;
+      }
+
+      .autocomplete-container {
+        margin-bottom: -1px;
+        border-radius: 0;
+      }
+
+      .input-container {
+        display: flex;
+        position: relative;
+      }
+
+      .input-container input {
+        flex: 1;
+        outline: none;
+        
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        padding: 10px;
+        padding-right: 31px;
+        font-size: 16px;
+      }
+
+      .autocomplete-items {
+        position: absolute;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0px 2px 10px 2px rgba(0, 0, 0, 0.1);
+        border-top: none;
+        background-color: #fff;
+
+        z-index: 99;
+        top: calc(100% + 2px);
+        left: 0;
+        right: 0;
+      }
+
+      .autocomplete-items div {
+        padding: 10px;
+        cursor: pointer;
+      }
+
+      .autocomplete-items div:hover {
+        /*when hovering an item:*/
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .autocomplete-items .autocomplete-active {
+        /*when navigating through the items using the arrow keys:*/
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .clear-button {
+        color: rgba(0, 0, 0, 0.4);
+        cursor: pointer;
+        
+        position: absolute;
+        right: 5px;
+        top: 0;
+
+        height: 100%;
+        display: none;
+        align-items: center;
+      }
+
+      .clear-button.visible {
+        display: flex;
+      }
+
+      .clear-button:hover {
+        color: rgba(0, 0, 0, 0.6);
+      }
+  </style>
+  <main class="form-signin d-flex justify-content-center align-items-center w-100 mt-4">
+    <div class="row">
+      <div class="col-md-12">
+        <div class="mb-4 d-flex justify-content-center" style="display: flex">
+          <h1>SmartCare Surgery</h1>
+        </div>
+        <form action="" method="post">
+          {% csrf_token %}
+          <h3 class="mb-4">Creating a new account for patient user.</h3>
+          <h4>Please select billing type.</h4>
+          <div class="row mb-4">
+            <div class="btn-group" role="group" aria-label="User type">
+              <input type="radio"
+                     class="btn-check"
+                     name="options"
+                     value="nhs"
+                     id="option1"
+                     autocomplete="off"
+                     checked />
+              <label class="btn btn-main border-0" for="option1">NHS</label>
+              <input type="radio"
+                     class="btn-check"
+                     name="options"
+                     id="option2"
+                     value="private"
+                     autocomplete="off" />
+              <label class="btn btn-main border-0" for="option2">Private</label>
+            </div>
+          </div>
+          <div class="mb-4" aria-label="Personal details">
+            <h4>Please enter personal details.</h4>
+            <div class="form-floating">
+              <input type="text"
+                     class="form-control top
+                            {% if 'name_invalid' in errors %} is-invalid {% endif %}"
+                     name="fullname"
+                     id="floatingInput"
+                     placeholder="Full name"
+                     value="{{ fullname }}"
+                     required />
+              <label for="floatingInput">Full name</label>
+              <div class="invalid-feedback">Please enter a valid name.</div>
+            </div>
+            <div class="autocomplete-container" id="autocomplete-container"></div>
+            <div class="form-floating">
+              <input type="date"
+                     class="form-control middle
+                     {% if 'date_invalid' in errors %} is-invalid {% endif %}"
+                     name="dob"
+                     id="dob"
+                     value="{{ dob }}"
+                     placeholder="Date of Birth"
+                     autocomplete="off"
+                     required />
+              <label for="dob">Date of Birth</label>
+              <div class="invalid-feedback">Date of Birth can not be in the future.</div>
+            </div>
+            <div class="form-floating">
+              <input type="number"
+                     class="form-control middle
+                     {% if 'phone_invalid' in errors %} is-invalid {% endif %}"
+                     name="telnum"
+                     id="telnum"
+                     placeholder="Phone Number"
+                     value="{{ phnumber }}"
+                     autocomplete="off"
+                     required />
+              <label for="telnum">Telephone Number</label>
+              <div class="invalid-feedback">Please enter a valid phone number. Must be 11 digits long.</div>
+            </div>
+            <div class="form-floating">
+              <input type="email"
+                     class="form-control bottom
+                     {% if 'email_invalid' in errors %} is-invalid {% endif %}"
+                     name="email"
+                     id="floatingEmail"
+                     placeholder="Email"
+                     value="{{ email }}"
+                     autocomplete="off"
+                     required />
+              <label for="floatingEmail">Email</label>
+              <div class="invalid-feedback">Please enter a valid email address.</div>
+            </div>
+          </div>
+          <div class="mb-4" aria-label="Login details">
+            <h4>Please enter Login details.</h4>
+            <div class="form-floating">
+              <input type="text"
+                     class="form-control top
+                     {% if 'username_invalid' in errors or  'username_unique' in errors %} is-invalid {% endif %}"
+                     name="username"
+                     id="floatingUsername"
+                     placeholder="Username"
+                     value="{{ username }}"
+                     autocomplete="off"
+                     required />
+              <label for="floatingUsername">Username</label>
+              {% if 'username_invalid' in errors %}
+              <div class="invalid-feedback">
+                Please enter a valid username. Must be at least 3 characters long and only contain letters and numbers.
+              </div>
+              {% endif %}
+              {% if 'username_unique' in errors %}
+              <div class="invalid-feedback">
+                Username is already taken. Try again.
+              </div>
+              {% endif %}
+            </div>
+            <div class="form-floating">
+              <input type="password"
+                     class="form-control middle
+                     {% if 'password_invalid' in errors %} is-invalid {% endif %}"
+                     name="password"
+                     id="floatingPassword"
+                     placeholder="Password"
+                     autocomplete="off"
+                     required />
+              <label for="floatingPassword">Password</label>
+              <div class="invalid-feedback">
+                Please enter a valid password.
+                <ul>
+                  <li>Must be at least 8 characters long</li>
+                  <li>Must contain at least one uppercase and lowercase letter</li>
+                  <li>Must contain at least one number</li>
+                  <li>Must contain at least one special character</li>
+                </ul>
+              </div>
+            </div>
+            <div class="form-floating">
+              <input type="password"
+                     class="form-control bottom
+                     {% if 'password_mismatch' in errors %} is-invalid {% endif %}"
+                     name="passwordConfirm"
+                     id="floatingPasswordConfirm"
+                     placeholder="Confirm Password"
+                     autocomplete="off"
+                     required />
+              <label for="floatingPasswordConfirm">Confirm Password</label>
+              <div class="invalid-feedback">
+                Passwords must match.
+              </div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-between  mb-4">
+          <input type="hidden" name="postcode" id="hiddenPostcode">
+          <input type="hidden" name="address" id="hiddenAddress">
+            <button type="button"
+                    class="btn btn-main btn-lg"
+                    onclick="navigateToUrl('{% url 'login_page' %}')">Back to Login</button>
+            <button type="submit" id="submitBtn" class="btn btn-main btn-lg">Sign-up</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  {% include "address_validation.html" %}
+{% endblock %}

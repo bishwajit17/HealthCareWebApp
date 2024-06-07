@@ -1,0 +1,360 @@
+{% extends "base_and_header.html" %} {% load static %} {% block content %}
+<style>
+  td,
+  th {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  table,
+  label.btn,
+  button,
+  .modal-body {
+    font-size: large !important;
+  }
+
+  .eol {
+    text-align: center;
+  }
+
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    background-color: white;
+    /* Optional: Set background color to match table background */
+    z-index: 1;
+    /* Optional: Ensure it's above other elements */
+  }
+
+  .bottom-buttons {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .table-container {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  .btn-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    flex-direction: row;
+    gap: 5px;
+  }
+
+  .btn-action {
+    width: 50%;
+  }
+
+  .modal-footer {
+    justify-content: space-between;
+  }
+
+  .loading-div {
+    display: none;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  #deleteUserName {
+    font-weight: bold;
+  }
+</style>
+<main class="container">
+  <div class="main-wrapper justify-content-center">
+    <div class="d-flex">
+      <h1>Staff List.</h1>
+    </div>
+    <!-- Delete Button Modal -->
+    <form id="deleteForm" action="{% url 'deleteStaff' %}" method="post">
+      <div
+        class="modal fade"
+        id="deleteModal"
+        tabindex="-1"
+        aria-labelledby="deleteModalLabel"
+        aria-hidden="true"
+      >
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="deleteModalLabel">Delete Account</h5>
+            </div>
+            <div class="modal-body" id="deleteModalBody">
+              Are you sure you want to delete the account of "<span
+                id="deleteUserName"
+              ></span
+              >"? {% csrf_token %}
+              <div class="form-group">
+                <label for="inputPassword" class="sr-only"
+                  >Please confirm admin account password:</label
+                >
+                <input
+                  type="password"
+                  class="form-control {% if 'incorrect' in errors %}is-invalid{% endif %}"
+                  id="inputPassword"
+                  name="password"
+                  placeholder="Password"
+                  required
+                />
+              </div>
+              <div
+                id="error-message"
+                class="alert alert-danger"
+                role="alert"
+                style="display: none"
+              >
+                Incorrect password. Please try again.
+              </div>
+
+              <div>
+                <div class="error-message mb-3">
+                  {% for message in messages %}
+                  <div class="d-flex justify-content-center align-items-center">
+                    {{ message }}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="form-group">
+                <input
+                  type="hidden"
+                  class="form-control"
+                  id="deleteUsername"
+                  name="username"
+                />
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-main"
+                data-bs-dismiss="modal"
+              >
+                Close
+              </button>
+              {% comment %}
+              <a type="button" href="deleteStaff/" class="btn btn-danger"
+                >Delete Account</a
+              >
+              {% endcomment %}
+              <button type="submit" class="btn btn-danger">
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+    <h4 class="section-header d-flex justify-content-center mb-4">
+      Show staff by role:
+    </h4>
+    <div class="row mb-4">
+      <div class="btn-group" role="group" aria-label="grouping type">
+        <input
+          type="radio"
+          class="btn-check"
+          name="options"
+          value="all"
+          id="option1"
+          autocomplete="off"
+          checked
+        />
+        <label class="btn btn-main border-0" for="option1">All</label>
+        <input
+          type="radio"
+          class="btn-check"
+          name="options"
+          id="option2"
+          value="doctor"
+          autocomplete="off"
+        />
+        <label class="btn btn-main border-0" for="option2">Doctor</label>
+        <input
+          type="radio"
+          class="btn-check"
+          name="options"
+          id="option3"
+          value="nurse"
+          autocomplete="off"
+        />
+        <label class="btn btn-main border-0" for="option3">Nurse</label>
+        <input
+          type="radio"
+          class="btn-check"
+          name="options"
+          id="option4"
+          value="admin"
+          autocomplete="off"
+        />
+        <label class="btn btn-main border-0" for="option4">Admin</label>
+      </div>
+    </div>
+    {% for message in error_msg %}
+    <p>{{ message }}</p>
+    {% endfor %}
+    {% if messages %}
+      {% for message in messages %}
+          <div class="alert alert-danger" role="alert">
+              {{ message }}
+          </div>
+      {% endfor %}
+    {% endif %}
+    <div class="table-container">
+      <table class="table table-hover">
+        <thead class="sticky-header">
+          <tr>
+            <th>ID</th>
+            <th>Full Name</th>
+            <th>Role</th>
+            <th>Username</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        {% for staffdetail in staffdetails %}
+        <tr class="staffRow" staffRowType="{{ staffdetail.role }}">
+          <td>#{{ staffdetail.user_id }}</td>
+          <td>{{ staffdetail.name }}</td>
+          <td>{{ staffdetail.role|title }}</td>
+          <td>{{ staffdetail.username }}</td>
+          <td class="btn-actions">
+            <a
+              href="{% url 'editStaff' user_id=staffdetail.user_id  dates=staffdetail.date_of_birth %}"
+              class="btn btn-main btn-action"
+              >Edit</a
+            >
+            <a
+              class="btn btn-main btn-action deleteBtn"
+              data-bs-toggle="modal"
+              data-bs-target="#deleteModal"
+              data-name="{{ staffdetail.name }}-{{ staffdetail.username }}"
+              >Delete</a
+            >
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="d-flex justify-content-between">
+      <button
+        type="button"
+        class="btn btn-main btn-lg mb-4"
+        onclick="navigateToUrl('{% url 'admin_main' %}')"
+      >
+        Back
+      </button>
+      <button
+        type="button"
+        class="btn btn-main btn-lg mb-4"
+        onclick="navigateToUrl('{% url 'extract_data_csv' %}')"
+      >
+        Request Extract Data
+      </button>
+      <button
+        type="button"
+        class="btn btn-main btn-lg mb-4"
+        onclick="navigateToUrl('{% url 'staff_signup' %}')"
+      >
+        Add New Staff
+      </button>
+    </div>
+  </div>
+</main>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const deleteButtons = document.querySelectorAll(".deleteBtn");
+    const deleteModalBody = document.querySelector("#deleteModalBody");
+    const deleteForm = document.getElementById("deleteForm");
+    const deleteUserName = document.getElementById("deleteUserName");
+
+    deleteButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        const dataName = this.getAttribute("data-name");
+        const [name, username] = dataName.split("-");
+        deleteUserName.textContent = name;
+        deleteUsername.value = username;
+      });
+    });
+  });
+
+</script>
+<!-- Hide/Show views depending on which radio button is selected -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const allRadio = document.getElementById("option1");
+    const doctorRadio = document.getElementById("option2");
+    const nurseRadio = document.getElementById("option3");
+    const adminRadio = document.getElementById("option4");
+
+    // Add event listener to radio buttons
+    allRadio.addEventListener("change", function () {
+      if (allRadio.checked) {
+        filterByStaff(allRadio.value);
+      }
+    });
+
+    doctorRadio.addEventListener("change", function () {
+      if (doctorRadio.checked) {
+        filterByStaff(doctorRadio.value);
+      }
+    });
+
+    nurseRadio.addEventListener("change", function () {
+      if (nurseRadio.checked) {
+        filterByStaff(nurseRadio.value);
+      }
+    });
+
+    adminRadio.addEventListener("change", function () {
+      if (adminRadio.checked) {
+        filterByStaff(adminRadio.value);
+      }
+    });
+  });
+
+  // Function to hide all divs
+  function filterByStaff(staffType) {
+    const staffRows = document.querySelectorAll(".staffRow");
+
+    staffRows.forEach((row) => {
+      if (staffType === "all") {
+        row.style.display = "table-row";
+      } else if (row.getAttribute("staffRowType") !== staffType) {
+        row.style.display = "none";
+      } else {
+        row.style.display = "table-row";
+      }
+    });
+  }
+
+  {% comment %} $(document).ready(function () {
+    $("#deleteForm").on("submit", function (event) {
+      var confirmPass = $("#inputPassword").val();
+      var errorMessage = $("#error-message");
+
+      // Assume you have stored the correct password in a variable 'correctPassword'
+      // You should replace 'correctPassword' with the actual correct password
+      var correctPassword = "{{ user_data.password }}";
+
+      if (confirmPass !== correctPassword) {
+        errorMessage.show(); // Display error message
+        event.preventDefault(); // Prevent form submission
+      }
+    });
+
+    $("#deleteModal").on("show.bs.modal", function (e) {
+      $("#error-message").hide(); // Hide error message when modal is shown
+    });
+
+    $("#delete-account-btn").on("click", function () {
+      $("#error-message").hide(); // Hide error message when delete account button is clicked
+    });
+
+    //function resetInputField() {
+    //$('#confirm_pass').val(''); // Clear the input field value
+    //$('#error-message').hide(); // Hide any error message
+    //}
+  }); {% endcomment %}
+</script>
+{% endblock %}

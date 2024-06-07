@@ -1,0 +1,96 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% load custom_filters %}
+{% block content %}
+    <style>
+        table,
+        label.btn,
+        button {
+            font-size: large !important;
+        }
+
+        .main-wrapper {
+            flex-direction: column;
+        }
+
+        .btn-table-cell {
+            width: 100%;
+        }
+
+        td:first-child,
+        th:first-child {
+            text-align: end;
+        }
+
+        th {
+            width: 50%;
+        }
+    </style>
+    <main>
+        <div class="container">
+            <h1>Appointment #{{ id }} cancel details.</h1>
+            <div class="table-container">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>Information</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Patient Name</td>
+                            <td>{{ name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Type</td>
+                            <td>{{ type|capfirst }}</td>
+                        </tr>
+                        <tr>
+                            <td>Staff Name</td>
+                            <td>{{ staff_name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Date</td>
+                            <td>{{ date }}</td>
+                        </tr>
+                        <tr>
+                            <td>Time</td>
+                            <td>{{ start_time }} – {{ end_time }}</td>
+                        </tr>
+                        <tr>
+                            <td>Duration</td>
+                            <td>{{ duration }} minutes</td>
+                        </tr>
+                        <tr>
+                            <td>Status</td>
+                            <td>{{ status|capfirst }}</td>
+                        </tr>
+                        <tr>
+                            <td>Payment Source</td>
+                            <td>{{ billing }}</td>
+                        </tr>
+                        <tr>
+                            <td>Cost</td>
+                            <td>{{ cost|add_currency_symbol }}</td>
+                        </tr>
+                        <tr>
+                            <td>Reference ID</td>
+                            <td>#{{ id }}</td>
+                        </tr>
+                        <tr>
+                            <td>Cancellation Reason</td>
+                            <td>{{ cancel_description | title }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- FIX ME: when going back, retain selected filter in appointments list -->
+            <button type="button"
+                    class="btn btn-lg button btn-main"
+                    onclick="navigateToUrl('{% url 'admin_appointments:appointment_details' %}')">
+                Back
+            </button>
+        </div>
+    </main>
+{% endblock %}

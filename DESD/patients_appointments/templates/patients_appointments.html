@@ -1,0 +1,505 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+    <head>
+        <meta name="csrf-token" content="{{ csrf_token }}" />
+    </head>
+    <style>
+        :root {
+            --calendar-helpers-font-size: 135%;
+        }
+
+        /* Table container */
+        .table-container {
+            overflow-x: auto;
+            /* Enable horizontal scrolling */
+            margin-right: 5%;
+            margin-left: 5%;
+            background: linear-gradient(to left,
+                    rgba(255, 255, 255, 1) 40%,
+                    rgba(255, 255, 255, 0) 100%);
+        }
+
+        .btn-slot {
+            width: 100%;
+            height: 70px;
+            --bs-btn-color: #000;
+            --bs-btn-bg: #39b8c3;
+            /* --bs-btn-border-color: #0d6efd; */
+            --bs-btn-hover-color: #000;
+            --bs-btn-hover-bg: #f962a3;
+            /* --bs-btn-hover-border-color: #0a58ca; */
+            --bs-btn-focus-shadow-rgb: 49, 132, 253;
+            --bs-btn-active-color: #fff;
+            --bs-btn-active-bg: #bb2466;
+            /* --bs-btn-active-border-color: #0a53be; */
+            --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+            --bs-btn-disabled-color: #fff;
+            --bs-btn-disabled-bg: #a1a1a1;
+            /* --bs-btn-disabled-border-color: #0d6efd; */
+            border-radius: 0px;
+        }
+
+        /* Sticky left column */
+        .sticky-column-left {
+            position: sticky;
+            left: 0;
+            background: linear-gradient(to right,
+                    rgba(255, 255, 255, 1) 40%,
+                    rgba(255, 255, 255, 0) 100%);
+            /* Ensure the column appears above the scrollable area */
+            z-index: 1;
+            /* Ensure it stays above other content */
+            min-width: 240px;
+            font-size: var(--calendar-helpers-font-size);
+        }
+
+        .sticky-column-right {
+            position: sticky;
+            right: -1px;
+            background: linear-gradient(to left,
+                    rgba(255, 255, 255, 1) 0%,
+                    rgba(255, 255, 255, 0) 100%);
+            z-index: 2;
+            min-width: 25px;
+        }
+
+        .row-time {
+            /* height: 35px; */
+        }
+
+        .cell-time {
+            white-space: nowrap;
+            font-size: var(--calendar-helpers-font-size);
+        }
+
+        tbody,
+        td,
+        tfoot,
+        th,
+        thead,
+        tr {
+            border-width: 0px;
+            min-width: 90px;
+        }
+
+        .date-range {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .date-range-display {
+            margin-bottom: 0px;
+            display: flex;
+            width: 325px;
+            justify-content: center;
+        }
+
+        #prev_week_btn {
+            margin-right: 5px;
+        }
+
+        #next_week_btn {
+            margin-left: 5px;
+        }
+
+        .section-header {
+            justify-content: center;
+        }
+
+        .settings {
+            display: grid;
+            justify-content: center;
+        }
+
+        .loading-div {
+            margin-top: 10%;
+            margin-bottom: 10%;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+    </style>
+    <main>
+        <h2 class="section-header d-flex mb-4">Book a new appointment</h2>
+        <div class="settings">
+            <h4 class="section-header d-flex">Select appointment type and date.</h4>
+            <div class="row mb-4">
+                <div class="btn-group" role="group" aria-label="Appointment type">
+                    <input type="radio"
+                           class="btn-check"
+                           name="options"
+                           value="doctor"
+                           id="option1"
+                           autocomplete="off" />
+                    <label class="btn btn-main border-0" for="option1">Doctor</label>
+                    <input type="radio"
+                           class="btn-check"
+                           name="options"
+                           id="option2"
+                           value="nurse"
+                           autocomplete="off" />
+                    <label class="btn btn-main border-0" for="option2">Nurse</label>
+                </div>
+            </div>
+            <div class="date-range mb-4">
+                <button class="btn btn-main" id="prev_week_btn">
+                    <i class="bi bi-caret-left-fill"></i>
+                </button>
+                <h4 class="date-range-display" id="date_range_display">{{ start_date }} to {{ end_date }}</h4>
+                <button class="btn btn-main" id="next_week_btn">
+                    <i class="bi bi-caret-right-fill"></i>
+                </button>
+            </div>
+        </div>
+        <h4 class="section-header d-flex">Select appointment slot.</h4>
+        <div class="loading-div text-center" id="loadingDiv">
+            <h4>Loading...</h4>
+            <div class="spinner-border" aria-hidden="true"></div>
+        </div>
+        <div id='calendar-display' class="table-container mb-4">
+            <table>
+                <tbody id="calendar-body">
+                    <tr class="row-time">
+                        <td class="sticky-column-left"></td>
+                        {% for slot_id, time in total_slots.items %}<td class="cell-time">{{ time }}</td>{% endfor %}
+                        <td class="sticky-column-right"></td>
+                    </tr>
+                    {% for day in available_slot %}
+                        <tr class="row-time" id="day_{{ day.day }}">
+                            <td class="sticky-column-left">{{ day.day }}</td>
+                            {% for slot_id, time in total_slots.items %}<td id="slot_{{ slot_id }}"></td>{% endfor %}
+                            <td class="sticky-column-right"></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="left: 5%; position: absolute;">
+            <button type="button"
+                    class="btn btn-main btn-lg mb-4"
+                    onclick="goToReturnPath()">Back</button>
+        </div>
+    </main>
+    <script>
+    async function goToReturnPath() {
+        const returnPath = sessionStorage.getItem('returnPath');
+        if (returnPath) {
+            var csrftoken = $('meta[name="csrf-token"]').attr('content');
+            try {
+                const res = await fetch ("{% url 'patients_appointments:clear_amend_item' %}", {
+                    method: 'POST',
+                    headers : {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: JSON.stringify({ item_key: 'amendBooking' })
+                });
+                const result = await res.json();
+                console.log(result.message);
+            } catch (err) {
+                console.error('Error clearing session item:', err);
+            }
+            sessionStorage.removeItem('returnPath');
+            window.location.href = returnPath;
+            
+        } else {
+            window.location.href = "{% url 'patient_main' %}";
+        }
+    }
+
+    $(document).ready(function() {
+        var today = new Date(); 
+        var dayOfWeek = today.getDay();
+        var firstDayOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1));
+        var lastDayOfWeek = new Date(firstDayOfWeek.getFullYear(), firstDayOfWeek.getMonth(), firstDayOfWeek.getDate() + 6);
+        var startDate = today;
+        var endDate = lastDayOfWeek;
+        var selectedRole = "doctor";
+        $('input[name="options"][value="' + selectedRole + '"]').prop('checked', true);
+
+        function formatDate(date) {
+            var year = date.getFullYear();
+            var month = String(date.getMonth() + 1).padStart(2, '0'); 
+            var day = String(date.getDate()).padStart(2, '0'); 
+            return year + '-' + month + '-' + day;
+        }
+
+        function parseDateRange(dateRangeDisplay) {
+            var dateRange = dateRangeDisplay.split(' to ');
+            var startDate = new Date(dateRange[0]);
+            var endDate = new Date(dateRange[1]);
+            return {
+                startDate,
+                endDate
+            };
+        }
+
+        function toLocalDateISOString(date) {
+            var localDate = new Date(date);
+            var timeZoneOffset = localDate.getTimezoneOffset() * 60000;
+            var adjustedDate = new Date(localDate.getTime() - timeZoneOffset);
+
+            return adjustedDate.toISOString().slice(0, 10);
+        }
+
+
+
+        function mapDaysToDate(startDate, endDate) {
+            var dayToDateMap = {};
+            var currentDate = new Date(startDate.getTime());
+            while (currentDate <= endDate) {
+                var dayOfWeek = currentDate.toLocaleString('en-us', {
+                    weekday: 'long'
+                });
+                dayToDateMap[dayOfWeek] = formatDate(currentDate);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            return dayToDateMap;
+        }
+
+          
+        function calendarRender(availableSlot, totalSlots) {
+            const calendarBody = document.getElementById('calendar-body');
+            calendarBody.innerHTML = '';
+
+            const timeRow = document.createElement('tr');
+            timeRow.className = 'row-time';
+
+            const stickyLeftHeader = document.createElement('td');
+            stickyLeftHeader.className = 'sticky-column-left';
+            timeRow.appendChild(stickyLeftHeader);
+
+            Object.values(totalSlots).forEach(time => {
+                const timeCell = document.createElement('td');
+                timeCell.className = 'cell-time';
+                timeCell.textContent = time;
+                timeRow.appendChild(timeCell);
+            });
+
+            const stickyRightHeader = document.createElement('td');
+            stickyRightHeader.className = 'sticky-column-right';
+            timeRow.appendChild(stickyRightHeader);
+            calendarBody.appendChild(timeRow);
+
+            availableSlot.forEach(day_slot => {
+                const dayRow = document.createElement('tr');
+                dayRow.className = 'row-time';
+                dayRow.id = 'day_' + day_slot.day;
+
+                const stickyLeftColumn = document.createElement('td');
+                stickyLeftColumn.className = 'sticky-column-left';
+                stickyLeftColumn.textContent = day_slot.day;
+                dayRow.appendChild(stickyLeftColumn);
+
+                let slotCounter = 0;
+                Object.entries(totalSlots).forEach(([slot_id, time], index) => {
+                    if (index >= slotCounter) {
+                        const slotTd = document.createElement('td');
+                        slotTd.id = 'slot_' + slot_id;
+
+                        if (day_slot.slots.hasOwnProperty(time)) {
+                            const slotData = day_slot.slots[time];
+                            const button = createSlotButton(slotData, time);
+                            slotTd.appendChild(button);
+                            slotTd.setAttribute("colspan", slotData.duration);
+                            slotCounter = index + slotData.duration; 
+                        }
+                        
+                        dayRow.appendChild(slotTd);
+                    }
+                });
+
+                const stickyRightColumn = document.createElement('td');
+                stickyRightColumn.className = 'sticky-column-right';
+                dayRow.appendChild(stickyRightColumn);
+
+                calendarBody.appendChild(dayRow);
+            });
+        }
+
+        function createSlotButton(slotData, time){
+            const button = document.createElement("button");
+            const dateRangeDisplay = document.getElementById('date_range_display').textContent;
+            const {
+                startDate,
+                endDate
+            } = parseDateRange(dateRangeDisplay);
+            const dayToDateMap = mapDaysToDate(startDate, endDate);
+            button.id = 'slot_' + slotData.slot_id;
+            button.className = 'btn btn-slot';
+            if (slotData.state == '1') {
+                button.disabled = true;
+                const button_text = document.createElement("div");
+                button_text.textContent = 'Unavailable';
+                button.appendChild(button_text)
+            } else if (slotData.state == '2') { 
+                button.disabled = true; 
+                button.style.backgroundColor = 'green';
+                const button_text = document.createElement("div");
+                button_text.textContent = `Booked`;
+                button.appendChild(button_text);
+            } else if (slotData.state == '3') {
+                button.disabled = true; 
+                const button_text = document.createElement("div");
+                button_text.textContent = 'Cancelled';
+                button.appendChild(button_text);
+            } else if (slotData.state == '4') {
+                button.disabled = true; 
+                button.style.backgroundColor = 'red';
+                const button_text = document.createElement("div");
+                button_text.textContent = 'Previous booked slot';
+                button.appendChild(button_text);
+            } else {
+                const startTimeDiv = document.createElement("div");
+                startTimeDiv.textContent = time;
+                const durationDiv = document.createElement("div");
+                durationDiv.textContent = '(' + slotData.duration * 10 + ' min)';
+                button.appendChild(startTimeDiv);
+                button.appendChild(durationDiv);
+                button.addEventListener('click', function() {
+                    var row = this.closest('tr');
+                    var dayOfWeek = row.cells[0].textContent;
+                    var selectedDate = dayToDateMap[dayOfWeek];
+                    var csrftoken = $('meta[name="csrf-token"]').attr('content');
+
+                    $.ajax({
+                        url: slotData.url,
+                        type: 'POST',
+                        data: {
+                            'date': selectedDate,
+                            'time': time,
+                            'type': selectedRole,
+                            'staff_id': slotData.staff_id,
+                            'duration': slotData.duration * 10,
+                            'csrfmiddlewaretoken': csrftoken,
+                        },
+                        success: function(response) {
+                            window.location.href = response.redirect_url;
+                        },
+                        error: function(xhr, errmsg, err) {
+                            console.log(xhr.status + ": " + xhr.responseText);
+                        }
+                    });
+                });
+            }
+            return button;
+        }
+
+          $('input[name="options"]').change(function() {
+            selectedRole = $('input[name="options"]:checked').val();
+            updateCalendar()
+          })
+
+          function updateDateRange() {
+            var startDateStr = toLocalDateISOString(startDate);
+            var endDateStr = toLocalDateISOString(endDate);
+            $('#date_range_display').text(startDateStr + ' to ' + endDateStr);
+          }
+
+          // Attach change event listener to date input fields
+          function updateCalendar() {
+            showLoadingDiv();
+            $.ajax({
+                url: "{% url 'patients_appointments:fetch_calendar' %}",
+                type: "GET",
+                data: {
+                    'start_date': toLocalDateISOString(startDate),
+                    'end_date': toLocalDateISOString(endDate),
+                    'role': selectedRole,
+                },
+                success: function(response) {
+                    // Update the calendar display area with the new calendar data
+                    let calendar = response.available_slot;
+                    let total_slots = response.total_slots;
+                    calendarRender(calendar, total_slots);
+                    hideLoadingDiv();
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText); // Log any errors to the console
+                }
+            });
+            
+          }
+
+        function adjustDateForDST(originalDate, daysToAdjust) {
+            var localDate = new Date(originalDate);
+            var timeZoneOffsetBefore = localDate.getTimezoneOffset();
+            localDate.setDate(localDate.getDate() + daysToAdjust);
+            var timeZoneOffsetAfter = localDate.getTimezoneOffset();
+            
+            if (timeZoneOffsetBefore !== timeZoneOffsetAfter) {
+                var dstAdjustment = (timeZoneOffsetBefore - timeZoneOffsetAfter) * 60000;
+                localDate = new Date(localDate.getTime() + dstAdjustment);
+            }
+
+            return localDate;
+        }
+
+        // Event listener for the previous week button
+        $('#prev_week_btn').click(function() {
+            startDate = adjustDateForDST(startDate, -7); 
+            endDate = adjustDateForDST(endDate, -7); 
+            updateDateRange(); 
+            updateCalendar();
+        });
+
+        // Event listener for the next week button
+        $('#next_week_btn').click(function() {
+            startDate = adjustDateForDST(startDate, +7); 
+            endDate = adjustDateForDST(endDate, +7);
+            updateDateRange();
+            updateCalendar();
+        });
+
+        function fetchCalendar() {
+            var csrftoken = $('meta[name="csrf-token"]').attr('content');
+            $.ajax({
+                url: "{% url 'patients_appointments:fetch_calendar' %}",
+                type: "POST",
+                data: {
+                    'csrfmiddlewaretoken': csrftoken ,
+                },
+                success: function(response) {
+                    // Update the calendar display area with the new calendar data
+                    let calendar = response.available_slot;
+                    let total_slots = response.total_slots;
+                    selectedRole = response.role;
+                    startDate = response.start_date;
+                    endDate = response.end_date;
+                    calendarRender(calendar, total_slots);
+                    updateDateRange();
+                     $('input[name="options"][value="' + selectedRole + '"]').prop('checked', true);
+                    hideLoadingDiv();
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText); // Log any errors to the console
+                }
+            });
+        }
+
+          // Initially update the calendar with the initial date range when the page loads
+        // calendar = {{ available_slot | safe }};
+        // total_slots = {{ total_slots | safe }};
+        fetchCalendar();
+        updateDateRange();
+        // calendarRender(calendar, total_slots);
+      });
+
+      function showLoadingDiv() {
+        var loadingDiv = document.getElementById("loadingDiv");
+        var tableDiv = document.getElementById("calendar-display");
+        tableDiv.style.display = "none";
+        loadingDiv.style.display = "flex";
+      }
+
+      function hideLoadingDiv() {
+        var loadingDiv = document.getElementById("loadingDiv");
+        var tableDiv = document.getElementById("calendar-display");
+        tableDiv.style.display = "block";
+        loadingDiv.style.display = "none";
+      }
+
+    </script>
+{% endblock %}

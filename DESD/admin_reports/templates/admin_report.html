@@ -1,0 +1,375 @@
+{% extends "base_and_header.html" %}
+{% load custom_filters %}
+{% load static %}
+{% block content %}
+    <style>
+        td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .statistics-container {
+            display: flex;
+            justify-content: space-around;
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-radius: 20px;
+            width: 50%;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 25px;
+            margin: 25px auto;
+        }
+
+        .statistic {
+            text-align: center;
+            flex: 1;
+        }
+
+        .statistic h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+        }
+
+        .statistic p {
+            margin: 5px 0;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .statistic .count {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 22px;
+        }
+
+        form {
+            display: flex;
+            justify-content: center;
+        }
+
+        .date-group {
+            margin-right: 50px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <main class="container">
+        <h1>Generate Reports.</h1>
+        <div class="date-form mb-4">
+            <h2>Select Start and End Dates:</h2>
+            <form method="post" id="dateForm">
+                {% csrf_token %}
+                <div class="input-group date-group">
+                    <span class="input-group-text">From</span>
+                    <input class="form-control" type="date" id="start_date" name="start_date" value="{{start_date|date:'Y-m-d' }}" max={{ today_date }} required />
+                    <span class="input-group-text">to</span>
+                    <input class="form-control" type="date" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" max={{ today_date }} required />
+
+                </div>
+                <button class="btn btn-main btn-lg" type="submit">Generate</button>
+            </form>
+            <div>
+                {% if messages %}
+                    <div class="error-message mb-3">
+                        {% for message in messages %}
+                            <div class="d-flex justify-content-center align-items-center"
+                                 style="color:red">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="btn-group" role="group" aria-label="grouping type">
+                <input type="radio"
+                       class="btn-check"
+                       name="options"
+                       value="turnover"
+                       id="option1"
+                       autocomplete="off"
+                       checked />
+                <label class="btn btn-main border-0" for="option1">Turnover</label>
+                <input type="radio"
+                       class="btn-check"
+                       name="options"
+                       value="charges"
+                       id="option2"
+                       autocomplete="off" />
+                <label class="btn btn-main border-0" for="option2">Charges</label>
+                <input type="radio"
+                       class="btn-check"
+                       name="options"
+                       value="expenses"
+                       id="option3"
+                       autocomplete="off" />
+                <label class="btn btn-main border-0" for="option3">Expenses</label>
+            </div>
+        </div>
+        <div id="turnover">
+            {% if start_date and end_date %}
+                <h2>Turnover Report between {{ start_date }} and {{ end_date }}</h2>
+                <div class="statistics-container">
+                    <div class="statistic">
+                        <h2>Appointments</h2>
+                        <p class="count">{{ appointments_count }}</p>
+                    </div>
+                </div>
+                <div class="statistics-container">
+                    <div class="statistic">
+                        <h2>Patients</h2>
+                        <p class="count">{{ patients_count }}</p>
+                    </div>
+                </div>
+                <div class="statistics-container">
+                    <div class="statistic">
+                        <h2>Prescriptions</h2>
+                        <p class="count">{{ prescriptions_count }}</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        <div id="charges">
+            {% if start_date and end_date %}
+                <h2>Charges Report between {{ start_date }} and {{ end_date }}</h2>
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th class="text-center">Patient Name</th>
+                            <th class="text-center">Assigned Staff</th>
+                            <th class="text-center">Total Cost</th>
+                            <th class="text-center">Billing Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for patient_name, payment_source, total_cost, staff_assigned in patient_costs %}
+                            <tr>
+                                <td>{{ patient_name }}</td>
+                                <td>
+                                    {% for staff in staff_assigned %}<li style="list-style:none;">{{ staff.user.name }}</li>{% endfor %}
+                                </td>
+                                <td>
+                                    {% if total_cost == 0 %}
+                                        Has cancelled appointments or prescriptions
+                                    {% else %}
+                                        £{{ total_cost }}
+                                    {% endif %}
+                                </td>
+                                <td style="text-transform:uppercase;">{{ payment_source }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <canvas id="chargesChart" width="0.25" height="0.25"></canvas>
+                <p>
+                    <a style="color:red;">NOTE:</a>Blue bar is NHS users and Red bar is Private users
+                </p>
+            {% endif %}
+        </div>
+        <div id="expenses" class="container">
+            {% if start_date and end_date %}
+                <h2>Expenses Report between {{ start_date }} and {{ end_date }}</h2>
+                <div class="row">
+                    <div class="col">
+                        <div class="statistics-container">
+                            <div class="statistic">
+                                <h5>Total Salary Paid to Doctors</h5>
+                                <p class="count">£{{ doctor_salary }}</p>
+                            </div>
+                        </div>
+                        <div class="statistics-container">
+                            <div class="statistic">
+                                <h5>Money Received from Patients</h5>
+                                <p class="count">£{{ total_cost }}</p>
+                            </div>
+                        </div>
+                        <div class="statistics-container">
+                            <div class="statistic">
+                                <h5>Profit</h5>
+                                <p class="count">£{{ profit }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <canvas id="barChart" width="400" height="400"></canvas>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        <button class="btn btn-main btn-lg mb-4"
+                style="margin-top:20px"
+                onclick="navigateToUrl('{% url 'admin_main' %}')">Go Back</button>
+    </main>
+    <!-- Hide/Show views depending on which radio button is selected -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const turnoverRadio = document.getElementById("option1");
+        const chargesRadio = document.getElementById("option2");
+        const expensesRadio = document.getElementById("option3");
+        
+        const turnover = document.getElementById("turnover");
+        const charges = document.getElementById("charges");
+        const expenses = document.getElementById("expenses");
+
+        // Function to hide all divs
+        function hideAllDivs() {
+            turnover.style.display = "none";
+            charges.style.display = "none";
+            expenses.style.display = "none";
+        }
+
+        // Initially hide all divs except the one corresponding to the checked radio button
+        hideAllDivs();
+
+        if (turnoverRadio.checked) {
+            turnover.style.display = "block";
+        } 
+        else if (chargesRadio.checked) {
+            charges.style.display = "block";
+        }
+        else if (expensesRadio.checked) {
+            expenses.style.display = "block";
+        }
+
+        // Add event listener to radio buttons
+        turnoverRadio.addEventListener("change", function() {
+            hideAllDivs();
+            if (turnoverRadio.checked) {
+                turnover.style.display = "block";
+            }
+        });
+
+        chargesRadio.addEventListener("change", function() {
+            hideAllDivs();
+            if (chargesRadio.checked) {
+                charges.style.display = "block";
+            }
+        });
+
+        expensesRadio.addEventListener("change", function() {
+            hideAllDivs();
+            if (expensesRadio.checked) {
+                expenses.style.display = "block";
+            }
+        });
+    });
+    </script>
+    <!-- Script for Charges section graph -->
+    <script>
+    var ctx = document.getElementById('chargesChart').getContext('2d');
+
+    // Initialize arrays to store data
+    var patientNames = [];
+    var totalCosts = [];
+    var backgroundColors = [];
+
+    // Populate arrays with patient data and corresponding background colors
+    {% for patient in patient_costs %}
+        patientNames.push("{{ patient.0 }}");
+        totalCosts.push({{ patient.2 }});
+        {% if patient.1.lower == 'nhs' %}
+            backgroundColors.push('blue');
+        {% elif patient.1.lower == 'private' %}
+            backgroundColors.push('red');
+        {% endif %}
+    {% endfor %}
+
+    // Chart data
+    var chartData = {
+        labels: patientNames,
+        datasets: [{
+            data: totalCosts,
+            backgroundColor: backgroundColors
+        }]
+    };
+
+    // Chart configuration
+    var chartOptions = {
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Total Cost Paid'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Patient Names'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: true,
+                labels: {
+                    generateLabels: function(chart) {
+                        var labels = chart.data.labels;
+                        var datasets = chart.data.datasets;
+                        var legendItems = [];
+                        
+                        // Add legend item for NHS
+                        legendItems.push({
+                            text: 'NHS',
+                            fillStyle: 'blue'
+                        });
+                        
+                        // Add legend item for Private
+                        legendItems.push({
+                            text: 'Private',
+                            fillStyle: 'red'
+                        });
+                        
+                        return legendItems;
+                    }
+                }
+            }
+        }
+    };
+
+    // Sort data in descending order
+    chartData.datasets[0].data.sort((a, b) => b - a);
+
+    // Create the chart
+    var myChart = new Chart(ctx, {
+        type: 'bar',
+        data: chartData,
+        options: chartOptions
+    });
+    </script>
+    <!-- Script for Expenses section graph -->
+    <script>
+    // Extract data from Django variables
+    const doctorSalary = "{{ doctor_salary }}";
+    const totalCost = "{{ total_cost }}";
+    const profit = "{{ profit }}";
+
+    // Prepare data for bar chart
+    const data = {
+        labels: ['Doctor Salary', 'Total Cost', 'Profit'],
+        datasets: [{
+            label: 'Amount (£)',
+            data: [doctorSalary, totalCost, profit],
+            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+            hoverBackgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+        }]
+    };
+
+    // Sort data in descending order
+    data.datasets[0].data.sort((a, b) => b - a);
+
+    // Get canvas element
+    const ct = document.getElementById('barChart').getContext('2d');
+
+    // Create bar chart
+    const barChart = new Chart(ct, {
+        type: 'bar',
+        data: data,
+        options: {
+             // Set to false to prevent automatic resizing
+            maintainAspectRatio: false, // Set to false to allow changing aspect ratio
+            
+        }
+    });
+    </script>
+{% endblock %}

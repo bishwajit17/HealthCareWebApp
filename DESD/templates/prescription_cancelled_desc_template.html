@@ -1,0 +1,74 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+    <style>
+        table,
+        label.btn,
+        button {
+            font-size: large !important;
+        }
+
+        .main-wrapper {
+            flex-direction: column;
+        }
+
+        .btn-table-cell {
+            width: 100%;
+        }
+
+        .first-column {
+            text-align: end;
+        }
+
+        td:first-child,
+        th:first-child {
+            text-align: end;
+        }
+
+        th {
+            width: 50%;
+        }
+    </style>
+    <main>
+        <div class="container">
+            <h1>Prescription cancellation #{{ prescription_cancellations.0.prescription_cancellation_id }} details.</h1>
+            <table class="table table-bordered table-hover">
+                <thead>
+                    <tr>
+                        <th>Information</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cancellation in prescription_cancellations %}
+                        <tr>
+                            <td>Patient Name</td>
+                            <td>{{ cancellation.patient_name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Prescription Name</td>
+                            <td>{{ cancellation.prescription_name|capfirst }}</td>
+                        </tr>
+                        <tr>
+                            <td>Prescription Type</td>
+                            <td>{{ cancellation.prescription_type|capfirst }}</td>
+                        </tr>
+                        <tr>
+                            <td>Cancellation Type</td>
+                            <td>{{ cancellation.cancellation_type|capfirst }}</td>
+                        </tr>
+                        <tr>
+                            <td>Cancelled By</td>
+                            <td>{{ cancellation.staff_name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Description</td>
+                            <td>{{ cancellation.description|capfirst }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% block actionButtonsBlock %}<!-- Content from child templates will be inserted here -->{% endblock %}
+        </div>
+    </main>
+{% endblock %}

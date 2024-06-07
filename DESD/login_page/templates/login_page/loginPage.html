@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block content_base %}
+  <style>
+      .form-signin input[type="text"] {
+          margin-bottom: -1px;
+          border-bottom-right-radius: 0;
+          border-bottom-left-radius: 0;
+      }
+
+      .form-signin input[type="password"] {
+          margin-bottom: 10px;
+          border-top-left-radius: 0;
+          border-top-right-radius: 0;
+      }
+
+      .error-message {
+          color: red;
+      }
+  </style>
+  <!-- If navigating from sign up screen and sign up was successfull, show confirm modal -->
+  <div class="modal fade"
+       id="confirmationModal"
+       data-bs-backdrop="static"
+       tabindex="-1"
+       aria-labelledby="confirmationModalLabel"
+       aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="confirmationModalLabel">Success!</h1>
+          <button type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+        <div class="modal-body">Sign-up was successful. Please enter your login details to continue.</div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-main" data-bs-dismiss="modal">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- If session expired, show session expired modal -->
+  <div class="modal fade"
+       id="sessionModal"
+       data-bs-backdrop="static"
+       tabindex="-1"
+       aria-labelledby="sessionModalLabel"
+       aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="sessionModalModalLabel">Session expired</h1>
+          <button type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+        <div class="modal-body">Your session expired. Please login to continue.</div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-main" data-bs-dismiss="modal">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="form-signin d-flex justify-content-center align-items-center w-100 vh-100">
+    <div class="row">
+      <div class="col-md-12">
+        <div class="mb-4 d-flex justify-content-center" style="display: flex">
+          <h1>SmartCare Surgery</h1>
+        </div>
+        <form action="login/" method="post">
+          {% csrf_token %}
+          <div aria-label="Login details">
+            <h4>Please enter login details.</h4>
+            <div class="form-floating">
+              <input type="text"
+                     class="form-control {% if messages %}is-invalid{% endif %}"
+                     name="username"
+                     id="floatingInput"
+                     placeholder="Username"
+                     required />
+              <label for="floatingInput">Username</label>
+            </div>
+            <div class="form-floating">
+              <input type="password"
+                     class="form-control {% if messages %}is-invalid{% endif %}"
+                     name="password"
+                     id="floatingPassword"
+                     placeholder="Password"
+                     required />
+              <label for="floatingPassword">Password</label>
+            </div>
+          </div>
+          <div>
+            {% if messages %}
+              <div class="error-message mb-3">
+                {% for message in messages %}
+                  <div class="d-flex justify-content-center align-items-center">{{ message }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between">
+            <button type="button"
+                    class="btn btn-main btn-lg"
+                    onclick="navigateToUrl('{% url 'user_signup' %}')">Sign-up</button>
+            <button type="submit" class="btn btn-main btn-lg">Login</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  <!-- If navigating from sign up screen and sign up was successfull, show confirm modal -->
+  {% if signup_confirm %}
+    <script>
+    $(document).ready(function() {
+      $('#confirmationModal').modal('show');
+    });
+    </script>
+  {% endif %}
+  {% if session_expired %}
+    <script>
+    $(document).ready(function() {
+      $('#sessionModal').modal('show');
+    });
+    </script>
+  {% endif %}
+{% endblock %}

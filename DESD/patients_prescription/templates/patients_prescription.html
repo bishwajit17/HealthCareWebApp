@@ -1,0 +1,403 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+    <style>
+        td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .wtc-notification {
+            display: none;
+        }
+
+        .wtc .wtc-notification {
+            display: block;
+        }
+
+
+
+        @keyframes fadeColor {
+            0% {
+                background-color: transparent;
+            }
+
+            50% {
+                background-color: #f962a38c;
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        .wtc>button {
+            animation: fadeColor 4s linear infinite;
+            background-color: #f962a38c;
+        }
+
+        .accordion-button:hover {
+            background-color: #f962a38c !important;
+        }
+
+        .accordion-button:not(.collapsed) {
+            background-color: #f962a38c;
+        }
+
+        .accordion-body {
+            overflow-x: auto;
+        }
+
+        table,
+        label.btn,
+        button,
+        .modal-body {
+            font-size: large !important;
+        }
+
+        .btn-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .eol {
+            text-align: center;
+        }
+
+        .modal-footer {
+            justify-content: space-between;
+        }
+    </style>
+    <main>
+        <div class="modal fade"
+             id="confirmReissueModal"
+             tabindex="-1"
+             aria-labelledby="confirmReissueModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="confirmReissueModalLabel">Confirm re-issue request?</h1>
+                    </div>
+                    <div class="modal-body">
+                        Clicking "request re-issue" will send a request for prescription re-issue.
+                        Are you sure you want to continue?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-main btn-lg" data-bs-dismiss="modal">Cancel</button>
+                        <button class="btn btn-main btn-reissue btn-lg" onclick="getPrescriptionID()">
+                            <i class="bi bi-plus-lg"></i>
+                            Request re-issue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <h1>{{ user_data.name }}'s issued prescriptions.</h1>
+            {% if prescriptions %}
+                <h4 class="section-header d-flex">Group prescriptions by:</h4>
+                <div class="row mb-4">
+                    <div class="btn-group" role="group" aria-label="grouping type">
+                        <input type="radio"
+                               class="btn-check"
+                               name="options"
+                               value="medicine"
+                               id="option1"
+                               autocomplete="off"
+                               checked />
+                        <label class="btn btn-main border-0" for="option1">Medicine</label>
+                        <input type="radio"
+                               class="btn-check"
+                               name="options"
+                               id="option2"
+                               value="appointments"
+                               autocomplete="off" />
+                        <label class="btn btn-main border-0" for="option2">Appointments</label>
+                    </div>
+                </div>
+                <div class="accordion mb-4" id="accordionPrescriptionsStayOpen">
+                    {% for prescription in prescriptions %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#panelsStayOpen-{{ prescription.prescription_id }}"
+                                        aria-expanded="false"
+                                        aria-controls="panelsStayOpen-{{ prescription.prescription_id }}">
+                                    <h5>{{ prescription.prescription_name }} – {{ prescription.prescription_type }}</h5>
+                                    <h5 class="wtc-notification">&nbsp;– Ready to be collected</h5>
+                                </button>
+                            </h2>
+                            <div id="panelsStayOpen-{{ prescription.prescription_id }}"
+                                 class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center">Issue Date</th>
+                                                <th class="text-center">Quantity</th>
+                                                <th class="text-center">Request Status</th>
+                                                <th class="text-center">Collection Status</th>
+                                                <th class="text-center">Payment Status</th>
+                                                <th class="text-center">Invoice</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for presc_info in prescription.info %}
+                                                <tr class="prescInfo">
+                                                    <td>{{ presc_info.issued_date }}</td>
+                                                    <td>{{ presc_info.quantity }}</td>
+                                                    <td>{{ presc_info.prescription_status|capfirst }}</td>
+                                                    <td collectionstatus="{{ presc_info.collection_status }}">{{ presc_info.collection_status|capfirst }}</td>
+                                                    <td>{{ presc_info.prescription_payment_status }}</td>
+                                                    <td class="btn-actions">
+                                                        {% if presc_info.collection_status == 'collected' or presc_info.collection_status == 'waiting to collect' or presc_info.collection_status == 'awaiting decision' %}
+                                                            <button class="btn btn-main"
+                                                                    {% if presc_info.collection_status == 'awaiting decision' %}disabled{% endif %}
+                                                                    onclick="viewInvoice({{ presc_info.prescription_assignment_id }})">
+                                                                <i class="bi bi-file-earmark-text"></i>
+                                                                View Invoice
+                                                            </button>
+                                                        {% endif %}
+                                                        {% if presc_info.collection_status == 'cancelled' %}
+                                                            <button class="btn btn-main"
+                                                                    onclick="viewCancellationReason({{ presc_info.prescription_assignment_id }})">
+                                                                <i class="bi bi-file-earmark-break"></i>
+                                                                View
+                                                                Reason
+                                                            </button>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                            <tr>
+                                                <td colspan="6">
+                                                    <button class="btn btn-main btn-reissue"
+                                                            type="button"
+                                                            data-bs-toggle="modal"
+                                                            data-prescription-id="{{ prescription.prescription_id }}"
+                                                            data-bs-target="#confirmReissueModal">
+                                                        <i class="bi bi-plus-lg"></i>
+                                                        Request re-issue
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="accordion mb-4" id="accordionAppointmentsStayOpen">
+                    {% for appointment in appointment_prescriptions %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#panelsStayOpen-{{ appointment.appointment_id }}"
+                                        aria-expanded="false"
+                                        aria-controls="panelsStayOpen-{{ appointment.appointment_id }}">
+                                    <h5>
+                                        {{ appointment.appointment_date }} at {{ appointment.appointment_time }} with {{ appointment.appointment_doctor }}
+                                    </h5>
+                                    <h5 class="wtc-notification">&nbsp;– Ready to be collected</h5>
+                                </button>
+                            </h2>
+                            <div id="panelsStayOpen-{{ appointment.appointment_id }}"
+                                 class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center">Name</th>
+                                                <th class="text-center">Type</th>
+                                                <th class="text-center">Latest Issue Date</th>
+                                                <th class="text-center">Request Status</th>
+                                                <th class="text-center">Collection Status</th>
+                                                <th class="text-center">Payment Status</th>
+                                                <th class="text-center">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for appoint_presc_info in appointment.prescriptions_info %}
+                                                <tr class="prescInfo">
+                                                    <td>{{ appoint_presc_info.prescription_name }}</td>
+                                                    <td>{{ appoint_presc_info.prescription_type|capfirst }}</td>
+                                                    <td>{{ appoint_presc_info.prescription_issue_date }}</td>
+                                                    <td>{{ appoint_presc_info.prescription_status|capfirst }}</td>
+                                                    <td collectionstatus="{{ appoint_presc_info.prescription_outcome }}">
+                                                        {{ appoint_presc_info.prescription_outcome|capfirst }}
+                                                    </td>
+                                                    <td>{{ appoint_presc_info.prescription_payment }}</td>
+                                                    <td class="btn-actions">
+                                                        {% if appoint_presc_info.prescription_outcome == 'collected' or appoint_presc_info.prescription_outcome == 'cancelled' %}
+                                                            {% if appoint_presc_info.prescription_id %}
+                                                                <button class="btn btn-main btn-reissue"
+                                                                        type="button"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-target="#confirmReissueModal"
+                                                                        data-prescription-id="{{ appoint_presc_info.prescription_id }}">
+                                                                    <i class="bi bi-plus-lg"></i>
+                                                                    Request re-issue
+                                                                </button>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                        {% if appoint_presc_info.prescription_outcome == 'cancelled' %}
+                                                            <button class="btn btn-main"
+                                                                    onclick="viewCancellationReason({{ appoint_presc_info.prescription_assignment_id }})">
+                                                                <i class="bi bi-file-earmark-break"></i>
+                                                                View
+                                                                Reason
+                                                            </button>
+                                                        {% endif %}
+                                                        {% if appoint_presc_info.prescription_outcome == 'collected' or appoint_presc_info.prescription_outcome == 'waiting to collect' or appoint_presc_info.prescription_outcome == 'awaiting decision' %}
+                                                            {% if appoint_presc_info.prescription_assignment_id %}
+                                                                <button class="btn btn-main"
+                                                                        {% if appoint_presc_info.prescription_outcome == 'awaiting decision' %}disabled{% endif %}
+                                                                        onclick="viewInvoice({{ appoint_presc_info.prescription_assignment_id }})">
+                                                                    <i class="bi bi-file-earmark-text"></i>
+                                                                    View Invoice
+                                                                </button>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <h4 class="eol mb-4 mt-4">No prescriptions found.</h4>
+            {% endif %}
+            <button class="btn btn-main btn-lg mb-4"
+                    onclick="navigateToUrl('{% url 'patient_main' %}')">Back</button>
+        </div>
+    </main>
+    <script>
+        function viewInvoice(prescription_assignment_id) {
+            window.location.href = "{% url 'prescription_invoice' %}?prescription_assignment_id=" + prescription_assignment_id;
+        }
+
+        function viewCancellationReason(prescription_assignment_id) {
+            window.location.href = "{% url 'prescription_cancelled_desc' %}?prescription_assignment_id=" +
+            prescription_assignment_id;
+        }
+
+        $('#confirmReissueModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget); // Button that triggered the modal
+            var prescription_id = button.data('prescription-id'); // Extract prescription ID from data attributes
+            $(this).data('prescription-id', prescription_id); // Set prescription ID in the modal
+        });
+
+        function getPrescriptionID() {
+            var prescription_id = $('#confirmReissueModal').data('prescription-id'); // Retrieve prescription_id from data attribute
+            handlePrescriptionRequest(prescription_id);
+        }
+
+        function handlePrescriptionRequest(prescription_id) {
+            var url = "{% url 'handle_prescription_request' %}";
+            var csrf_token = '{{ csrf_token }}';
+        
+            var postData = {
+                'prescription_id': prescription_id,
+                'csrfmiddlewaretoken': csrf_token
+            };
+        
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: postData,
+                success: function(data) {
+                    window.location.reload();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error handling prescription request:', error);
+                }
+            });
+        }
+        
+
+        //For adding notification tags where collection status is ready to be collected
+        document.addEventListener("DOMContentLoaded", function() {
+            var accordionHeadersPrescriptions = document.querySelectorAll('#accordionPrescriptionsStayOpen .accordion-header');
+          
+            accordionHeadersPrescriptions.forEach(function(header) {
+              // Check if the header has a child element with the collectionStatus attribute set to 'status1'
+              var accordionCollapse = header.nextElementSibling;
+              var waitingToCollect = accordionCollapse.querySelector('td[collectionstatus="waiting to collect"]');
+              var awaitingDecision = accordionCollapse.querySelector('td[collectionstatus="awaiting decision"]');
+              var reissueBtn = accordionCollapse.querySelector('.btn-reissue')
+              if (waitingToCollect) {
+                header.classList.add('wtc');
+                reissueBtn.disabled = true;
+              } else if(awaitingDecision) {
+                reissueBtn.disabled = true;
+              }
+
+            });
+
+            var accordionHeadersAppointments = document.querySelectorAll('#accordionAppointmentsStayOpen .accordion-header');
+
+            accordionHeadersAppointments.forEach(function(header) {
+                // Check if the header has a child element with the collectionStatus attribute set to 'status1'
+                var accordionCollapse = header.nextElementSibling;
+                var waitingToCollect = accordionCollapse.querySelector('td[collectionstatus="waiting to collect"]');
+                var awaitingDecision = accordionCollapse.querySelector('td[collectionstatus="awaiting decision"]');
+                if (waitingToCollect) {
+                  header.classList.add('wtc');
+                  // reissueBtn.disabled = true;
+                } 
+              });
+          });
+
+    </script>
+    <!-- Hide/Show views depending on which radio button is selected -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const medicineRadio = document.getElementById("option1");
+            const appointmentsRadio = document.getElementById("option2");
+            const medicineAccordion = document.getElementById("accordionPrescriptionsStayOpen");
+            const appointmentsAccordion = document.getElementById("accordionAppointmentsStayOpen");
+    
+            // Function to hide all divs
+            function hideAllDivs() {
+                medicineAccordion.style.display = "none";
+                appointmentsAccordion.style.display = "none";
+            }
+    
+            // Initially hide all divs except the one corresponding to the checked radio button
+            hideAllDivs();
+            if (medicineRadio.checked) {
+                medicineAccordion.style.display = "block";
+            } else if (appointmentsRadio.checked) {
+                appointmentsAccordion.style.display = "block";
+            }
+    
+            // Add event listener to radio buttons
+            medicineRadio.addEventListener("change", function() {
+                hideAllDivs();
+                if (medicineRadio.checked) {
+                    medicineAccordion.style.display = "block";
+                }
+            });
+    
+            appointmentsRadio.addEventListener("change", function() {
+                hideAllDivs();
+                if (appointmentsRadio.checked) {
+                    appointmentsAccordion.style.display = "block";
+                }
+            });
+        });
+    </script>
+{% endblock %}

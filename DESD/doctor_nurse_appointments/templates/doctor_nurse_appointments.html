@@ -1,0 +1,668 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+  <head>
+    <meta name="csrf-token" content="{{ csrf_token }}" />
+  </head>
+  <style>
+      table,
+      label.btn,
+      button,
+      .modal-body {
+          font-size: large !important;
+      }
+
+      td,
+      th {
+          text-align: center;
+          vertical-align: middle;
+      }
+
+      .main-wrapper {
+          flex-direction: column;
+      }
+
+      .table-container {
+          max-height: 50vh;
+          overflow-y: auto;
+      }
+
+      .sticky-header {
+          position: sticky;
+          top: 0;
+          background-color: white;
+          /* Optional: Set background color to match table background */
+          z-index: 1;
+          /* Optional: Ensure it's above other elements */
+      }
+
+      .bottom-buttons {
+          display: flex;
+          justify-content: space-between;
+      }
+
+      .filter-buttons {
+          display: flex;
+          flex-direction: column;
+      }
+
+      .btn-actions {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          flex-direction: row;
+          gap: 5px;
+      }
+
+      .eol {
+          text-align: center;
+      }
+
+      .modal-footer {
+          justify-content: space-between;
+      }
+
+      .loading-div {
+          display: none;
+          gap: 10px;
+          justify-content: center;
+      }
+
+      .modal_forward_div, #modal_forward_footer {
+          display: none;
+      }
+  </style>
+  <div class="modal fade"
+       id="confirmCancelModal"
+       tabindex="-1"
+       aria-labelledby="confirmCancelModalLabel"
+       aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="confirmCancelModalLabel">Confirm Cancel Appointment?</h1>
+        </div>
+        <div class="modal-body">
+          <p>Clicking "cancel appointment" will cancel the upcoming appointment. Are you sure you want to continue?</p>
+          <div class="mb-3">
+            <label for="cancelReasonSelect" class="form-label">Reason for cancellation:</label>
+            <select class="form-select" id="cancelReasonSelect" name="cancelReason">
+              {% for cancel_type in cancel_types %}
+                <option value="{{ cancel_type.id }}">{{ cancel_type.type | title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-main btn-lg" data-bs-dismiss="modal">Back</button>
+          <button class="btn btn-main btn-reissue btn-lg" id="confirmCancelBtn">Cancel Appointment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade"
+       id="completeModal"
+       tabindex="-1"
+       aria-labelledby="completeModalLabel"
+       aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="approveModalLabel">
+            Completing appointment for "<span id="approveModal_patientName"></span>"
+          </h5>
+        </div>
+        <div class="modal-body" id="approveModalBody">
+          Select appointment outcome:
+          <div class="filter-buttons mb-4">
+            <div class="btn-group" role="group" aria-label="grouping type">
+              <input type="radio"
+                     class="btn-check"
+                     name="modal_options"
+                     id="modal_prescribe"
+                     value="prescribe"
+                     autocomplete="off"
+                     checked />
+              <label class="btn btn-main border-0" for="modal_prescribe">Prescribe</label>
+              <input type="radio"
+                     class="btn-check"
+                     name="modal_options"
+                     value="forward"
+                     id="modal_forward"
+                     autocomplete="off" />
+              <label class="btn btn-main border-0" for="modal_forward">Forward</label>
+            </div>
+          </div>
+          {% csrf_token %}
+          <div class="modal_prescribe_div" id="modal_prescribe_div">
+            The patient will be prescribed the following medicine:
+            <div class="form-floating mt-2 mb-3">
+              <textarea class="form-control"
+                        placeholder="Prescription name"
+                        name="prescription_name"
+                        id="prescprtionNameID_input"
+                        required></textarea>
+              <label for="prescriptionName">Prescription name</label>
+              <input type="hidden" id="modalAppointmentId" name="appointmentId" value="">
+            </div>
+            <div class="form-floating mb-3">
+              <select class="form-select"
+                      id="prescriptionTypeID_input"
+                      name="prescription_type"
+                      aria-label="prescription type">
+                <option selected value="Tablets">Tablets</option>
+                <option value="Drops">Drops</option>
+                <option value="Inhalers">Inhalers</option>
+                <option value="Powder">Powder</option>
+                <option value="Capsules">Capsules</option>
+                <option value="Injections">Injections</option>
+                <option value="Other">Other</option>
+              </select>
+              <label for="prescription_type">Prescription type</label>
+            </div>
+            <div class="form-floating mb-3">
+              <input type="number"
+                     class="form-control"
+                     name="quantity"
+                     id="quantity"
+                     placeholder="Quantity"
+                     value="1"
+                     min="1"
+                     max="99999"
+                     required />
+              <label for="quantity">Quantity</label>
+            </div>
+            <div class="form-floating">
+              <input type="number"
+                     class="form-control"
+                     name="cost"
+                     id="cost"
+                     placeholder="Cost"
+                     value="1"
+                     min="0"
+                     max="99999"
+                     required />
+              <label for="cost">Cost (£)</label>
+            </div>
+          </div>
+          <div class="modal_forward_div" id="modal_forward_div">The patient will be forwarded to another hospital.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-main" data-bs-dismiss="modal">Close</button>
+          <div id="modal_prescribe_footer">
+            <button type="submit" class="btn btn-main" id="prescribeBtn">Prescribe</button>
+          </div>
+          <div id="modal_forward_footer">
+            <button type="submit" class="btn btn-main" id="forwardBtn">Forward</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="container">
+    <h1>Patients' appointments.</h1>
+    <div class="main-wrapper justify-content-center d-flex mt-4">
+      <h4 class="section-header d-flex justify-content-center mb-4">Show appointments by outcome:</h4>
+      <div class="filter-buttons mb-4">
+        <div class="btn-group" role="group" aria-label="grouping type">
+          <input type="radio"
+                 class="btn-check"
+                 name="options"
+                 value="awaiting"
+                 id="option1"
+                 autocomplete="off"
+                 checked />
+          <label class="btn btn-main border-0" for="option1">Awaiting</label>
+          <input type="radio"
+                 class="btn-check"
+                 name="options"
+                 id="option2"
+                 value="forwarded"
+                 autocomplete="off" />
+          <label class="btn btn-main border-0" for="option2">Forwarded</label>
+          <input type="radio"
+                 class="btn-check"
+                 name="options"
+                 id="option3"
+                 value="prescribed"
+                 autocomplete="off" />
+          <label class="btn btn-main border-0" for="option3">Prescribed</label>
+          <input type="radio"
+                 class="btn-check"
+                 name="options"
+                 id="option4"
+                 value="cancelled"
+                 autocomplete="off" />
+          <label class="btn btn-main border-0" for="option4">Cancelled</label>
+        </div>
+      </div>
+      <div class="loading-div text-center" id="loadingDiv">
+        <h4>Loading...</h4>
+        <div class="spinner-border" aria-hidden="true"></div>
+      </div>
+      <div class="table-container mb-4" id="tableContainer">
+        <table class="table table-hover">
+          <thead class="sticky-header">
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Patient Name</th>
+              <th>Outcome</th>
+              <th>Manage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for appointment in appointments %}
+              <tr>
+                <td>{{ appointment.appointment_date|date:"Y-m-d" }}</td>
+                <td>
+                  {{ appointment.appointment_start|time:"H:i" }} –
+                  {% if appointment.appointment_end %}{{ appointment.appointment_end|time:"H:i" }}{% endif %}
+                </td>
+                <td>{{ appointment.patient__user__name }}</td>
+                <td>{{ appointment.appointment_outcome|title }}</td>
+                <td class="btn-actions">
+                  <div>
+                    {% if appointment.appointment_outcome == "cancelled" %}
+                      <button class="btn btn-main btn-in-table"
+                              onclick="redirectToReason('{{ appointment.appointment_id }}'">
+                        <i class="bi bi-file-earmark-text"></i>
+                        View Reason
+                      </button>
+                    {% elif appointment.appointment_outcome == "awaiting" %}
+                      <button class="btn btn-main btn-in-table"
+                              onclick="redirectToBooking('{{ appointment.appointment_date }}', '{{ appointment.appointment_start|time:"H:i" }}', '{{ appointment.appointment_end|time:"H:i" }}', '{{ appointment.patient_id }}')">
+                        Amend
+                      </button>
+                      <button class="btn btn-main btn-in-table"
+                              type="button"
+                              data-bs-toggle="modal"
+                              data-bs-target="#completeModal"
+                              data-appointment-id="{{ appointment.appointment_id }}"
+                              data-patient-name="{{ appointment.patient__user__name }}"
+                              data-patient-id="{{ appointment.patient_id }}">Complete</button>
+                      <button class="btn btn-main btn-in-table"
+                              type="button"
+                              data-bs-toggle="modal"
+                              data-bs-target="#confirmCancelModal"
+                              data-appointment-id="{{ appointment.appointment_id }}">Cancel</button>
+                    {% elif appointment.appointment_outcome == "forwarded" %}
+                      <button class="btn btn-main btn-in-table"
+                              onclick="redirectToForward('{{ appointment.staff__user__role }}','{{ appointment.appointment_date }}', '{{ appointment.appointment_start|time:"H:i" }}', '{{ appointment.appointment_end|time:"H:i" }}')">
+                        <i class="bi bi-file-earmark-text"></i>
+                        View Details
+                      </button>
+                    {% elif appointment.appointment_outcome == "prescribed" %}
+                      <button class="btn btn-main btn-in-table"
+                              onclick="redirectToBooking('{{ appointment.appointment_date }}', '{{ appointment.appointment_start|time:"H:i" }}', '{{ appointment.appointment_end|time:"H:i" }}', '{{ appointment.patient_id }}')">
+                        Amend
+                      </button>
+                      <button class="btn btn-main btn-in-table"
+                              type="button"
+                              data-bs-toggle="modal"
+                              data-bs-target="#confirmCancelModal"
+                              data-appointment-id="{{ appointment.appointment_id }}">Cancel</button>
+                    {% else %}
+                      <!-- No buttons -->
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+            <tr class="eol">
+              <td colspan=7>
+                <h4>End of list.</h4>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"
+      id="toastContainer">
+      <div id="liveToast"
+        class="toast"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true">
+        <div class="toast-header">
+            <img src="..." class="rounded me-2" alt="..." />
+            <strong class="me-auto">Update Successful</strong>
+            <small>Just Now</small>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+        </div>
+        <div class="toast-body">Appointment status update successfully.</div>
+      </div>
+    </div>
+    <div class="bottom-buttons">
+      <button type="button"
+              class="btn btn-main btn-lg mb-4"
+              onclick="navigateToUrl('{% url 'doctor_nurse_main' %}')">Back</button>
+    </div>
+  </main>
+  <script>
+    outcome = "{{appointment.appointment_outcome}}"
+    $('input[name="options"][value="' + outcome + '"]').prop('checked', true);
+
+    $('input[name="options"]').change(function() {
+            outcome = $('input[name="options"]:checked').val();
+            updateList()
+          })
+
+    $('#confirmCancelModal').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget); 
+      var appointmentId = button.data('appointment-id');
+      $('#confirmCancelBtn').data('appointment-id', appointmentId);
+    });
+
+    $('#confirmCancelBtn').click(function() {
+      var appointmentId = $(this).data('appointment-id');
+      cancelAppointment(appointmentId);
+    });
+
+    $('#completeModal').off('show.bs.modal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget); // Button that triggered the modal
+        var patientId = button.data('patient-id'); 
+        var patientName = button.data('patient-name'); // Extract info from data-* attributes
+        var appointmentId = button.data('appointment-id');
+        var modal = $(this);
+        var titleSpan = modal.find('.modal-title span#approveModal_patientName');
+        titleSpan.text(patientName);
+        $('#prescribeBtn').data('appointment-id', appointmentId);
+        $('#forwardBtn').data('appointment-id', appointmentId);
+    });
+
+    $('#forwardBtn').click(function() {
+      var appointmentId = $(this).data('appointment-id');
+      forwardAppointment(appointmentId);
+    })
+
+    function forwardAppointment(id) {
+      var csrftoken = $('meta[name="csrf-token"]').attr('content');
+        $.ajax({
+            url: "{% url 'doctor_nurse_appointments:forward_appointment' %}",
+            type: "POST",
+            data: {
+            'id': id,
+            'csrfmiddlewaretoken': csrftoken ,
+            },
+            success: function(response) {
+              outcome = $('input[name="options"]:checked').val();
+              updateList()
+              $('#completeModal').modal('hide');
+              var toast = document.getElementById("liveToast");
+              var toastInstance = new bootstrap.Toast(toast);
+              toastInstance.show();
+            },
+            error: function(err) {
+              console.error(err);
+              alert('Failed to forward.');
+            }
+        })
+    }
+
+    $('#prescribeBtn').click(function() {
+      var appointmentId = $(this).data('appointment-id');
+      prescribeAppointment(appointmentId);
+    })
+
+    function prescribeAppointment(id) {
+      var formData = {
+        appointmentId: id,
+        prescription_name: $('#prescprtionNameID_input').val(),
+        prescription_type: $('#prescriptionTypeID_input').val(),
+        quantity: $('#quantity').val(),
+        cost: $('#cost').val(),
+        csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+      };
+
+      $.ajax({
+        type: 'POST',
+        url: '{% url "doctor_nurse_appointments:prescribe_appointment" %}',
+        data: formData,
+        success: function(response) {
+          outcome = $('input[name="options"]:checked').val();
+          updateList()
+          $('#completeModal').modal('hide');
+          var toast = document.getElementById("liveToast");
+          var toastInstance = new bootstrap.Toast(toast);
+          toastInstance.show();
+        },
+        error: function(xhr, status, error) {
+          console.error('Error submitting prescription:', error);
+          alert('Failed to submit prescription.');
+        }
+      });
+    }
+
+    function cancelAppointment(id) {
+        var cancelReason = $('#cancelReasonSelect').val();
+        if (!cancelReason) {
+            alert('Please provide a reason for cancellation.');
+            return; 
+        }
+        var csrftoken = $('meta[name="csrf-token"]').attr('content');
+        $.ajax({
+            url: "{% url 'doctor_nurse_appointments:cancel_appointment' %}",
+            type: "POST",
+            data: {
+            'id': id,
+            'reason': cancelReason,
+            'csrfmiddlewaretoken': csrftoken ,
+            },
+            success: function(response) {
+            window.location.reload(); 
+            },
+            error: function(err) {
+            console.error(err);
+            }
+        })
+    }
+
+    function toTitleCase(str) {
+        return str.replace(
+            /\w\S*/g,
+            function(txt) {
+                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+            }
+        );
+    }
+
+    function updateList() {
+      var loadingDiv = document.getElementById("loadingDiv");
+      var tableDiv = document.getElementById("tableContainer");
+      tableDiv.style.display = "none"
+      loadingDiv.style.display = "flex"
+      $.ajax({
+        url: "{% url 'doctor_nurse_appointments:appointments_list' %}",
+        type: "GET",
+        data: {
+          'outcome': outcome,
+        },
+        success: function(response) {
+            $("table tbody").empty();
+            appointments = response.appointment;
+            cancelTypes = response.cancel_type;
+            if(appointments.length)
+            {
+
+            
+            $.each(appointments, function(index, appointment) {
+                var manageButtons = '';
+
+                if (appointment.appointment_outcome === "forwarded") {
+                manageButtons = '<button class="btn btn-main btn-in-table" onclick="redirectToForward(\'' + appointment.appointment_id + '\')"><i class="bi bi-file-earmark-text"></i> View Details</button>';
+                } else if (appointment.appointment_outcome === "cancelled") {
+                manageButtons = '<button class="btn btn-main btn-in-table" onclick="redirectToReason(\'' + appointment.appointment_id + '\')"><i class="bi bi-file-earmark-break"></i> View Reason</button>';
+                } else if (appointment.appointment_outcome === "awaiting") {
+                manageButtons = '<button class="btn btn-main btn-in-table" onclick="redirectToBooking(\'' + appointment.appointment_date + '\', \'' + appointment.appointment_start + '\', \'' + appointment.appointment_end + '\', \'' + appointment.patient_id + '\')">Amend</button>';
+                manageButtons += '<button class="btn btn-main btn-in-table" type="button" data-bs-toggle="modal" data-bs-target="#completeModal" data-appointment-id="' + appointment.appointment_id + '" data-patient-name="' + appointment.patient__user__name + '" data-patient-id="' + appointment.patient_id + '">Complete</button>';
+                manageButtons += '<button class="btn btn-main btn-in-table" type="button" data-bs-toggle="modal" data-bs-target="#confirmCancelModal" data-appointment-id="' + appointment.appointment_id + '">Cancel</button>';
+                } else if (appointment.appointment_outcome === "prescribed") {
+                manageButtons = '<button class="btn btn-main btn-in-table" onclick="redirectToForward(\'' + appointment.appointment_id + '\')"><i class="bi bi-file-earmark-text"></i> View Details</button>';
+                }
+
+                name = toTitleCase(appointment.patient__user__name);
+                appointment_status = toTitleCase(appointment.appointment_status);
+                appointment_outcome = toTitleCase(appointment.appointment_outcome)
+                startTimeFormatted = appointment.appointment_start.substr(0, 5);
+                endTimeFormatted = appointment.appointment_end ? appointment.appointment_end.substr(0, 5) : '';
+                
+                var row = '<tr>' +
+                            '<td>' + appointment.appointment_date + '</td>' +
+                            '<td>' + startTimeFormatted + ' – ' + endTimeFormatted + '</td>' +
+                            '<td>' + (name || '') + '</td>' +
+                            '<td>' + (appointment_outcome || '') + '</td>' +
+                            '<td class="btn-actions">' + manageButtons + '</td>' +
+                        '</tr>';
+                $("table tbody").append(row);
+            });
+                var eolrow =
+                    '<tr class="eol">' +
+                        '<td colspan=7>' +
+                        '<h4>End of list.</h4>' +
+                        '</td>' +
+                        '</tr>'
+                    $("table tbody").append(eolrow);
+            } else {
+                var eolrow =
+                    '<tr class="eol">' +
+                        '<td colspan=7>' +
+                        '<h4>No appointments found.</h4>' +
+                        '</td>' +
+                        '</tr>'
+                    $("table tbody").append(eolrow);
+            }
+
+
+            cancelReasonSelect = document.getElementById('cancelReasonSelect');
+            cancelReasonSelect.innerHTML = '';
+            cancelTypes.forEach(function(type) {
+                var txt = toTitleCase(type.type);
+                var option = new Option(txt, type.id);
+                cancelReasonSelect.appendChild(option);
+            });
+
+            tableDiv.style.display = "block"
+            loadingDiv.style.display = "none"
+        },
+        error: function(xhr, errmsg, err) {
+            console.log(xhr.status + ": " + xhr.responseText);
+        }
+    });
+    }
+
+    function redirectToForward(id) {
+      let form = document.createElement("form");
+      form.setAttribute("method", "get");
+      form.setAttribute("action", "{% url 'doctor_nurse_appointments:forward_detail' %}");
+      var csrftoken = $('meta[name="csrf-token"]').attr('content');
+
+      let fields = {
+          'id': id,
+          'csrfmiddlewaretoken': csrftoken,
+      };
+
+      for (let key in fields) {
+          let field = document.createElement("input");
+          field.setAttribute("type", "hidden");
+          field.setAttribute("name", key);
+          field.setAttribute("value", fields[key]);
+          form.appendChild(field);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    function redirectToReason(id) {
+      let form = document.createElement("form");
+      form.setAttribute("method", "get");
+      form.setAttribute("action", "{% url 'doctor_nurse_appointments:cancel_reason' %}");
+      var csrftoken = $('meta[name="csrf-token"]').attr('content');
+
+      let fields = {
+          'id': id,
+          'csrfmiddlewaretoken': csrftoken,
+      };
+
+      for (let key in fields) {
+          let field = document.createElement("input");
+          field.setAttribute("type", "hidden");
+          field.setAttribute("name", key);
+          field.setAttribute("value", fields[key]);
+          form.appendChild(field);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    function toLocalDateISOString(date) {
+        var localDate = new Date(date);
+        var timeZoneOffset = localDate.getTimezoneOffset() * 60000;
+        var adjustedDate = new Date(localDate.getTime() - timeZoneOffset);
+
+        return adjustedDate.toISOString().slice(0, 10);
+    }
+
+    function redirectToBooking(selectedDateStr, startTime, endTime, patient) {
+        let selectedDate = toLocalDateISOString(selectedDateStr)
+        var csrftoken = $('meta[name="csrf-token"]').attr('content');
+
+        $.ajax({
+            url: "{% url 'doctor_nurse_appointments:amend_booking_handling' %}",
+            type: "POST",
+            data: {
+                'date': selectedDate,
+                'start': startTime,
+                'end': endTime,
+                'patient': patient,
+                'csrfmiddlewaretoken': csrftoken,
+            },
+            success: function(response) {
+                if (response.status === 'success' && response.redirect_url) {
+                    window.location.href = response.redirect_url;
+                } else {
+                    console.error('Failed to redirect: ', response.error || 'Missing redirect URL');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error in booking redirection: ', error);
+            }
+        });
+    }
+
+  // MODAL STUFF
+  complete_type = $('input[name="modal_options"]:checked').val()
+
+  $('input[name="modal_options"]').change(function() {
+    complete_type = $('input[name="modal_options"]:checked').val();
+    updateModal()
+  })
+
+  function updateModal() {
+    var prescribe_modal = document.getElementById("modal_prescribe_div");
+    var prescribe_modal_footer = document.getElementById("modal_prescribe_footer");
+    var forward_modal = document.getElementById("modal_forward_div");
+    var forward_modal_footer = document.getElementById("modal_forward_footer");
+    if(complete_type === "prescribe")
+    {
+      prescribe_modal.style.display = "block"
+      forward_modal.style.display = "none"
+      prescribe_modal_footer.style.display = "block"
+      forward_modal_footer.style.display = "none"
+    }
+    else {
+      prescribe_modal.style.display = "none"
+      forward_modal.style.display = "block"
+      prescribe_modal_footer.style.display = "none"
+      forward_modal_footer.style.display = "block"
+    }
+  }
+
+  </script>
+{% endblock %}

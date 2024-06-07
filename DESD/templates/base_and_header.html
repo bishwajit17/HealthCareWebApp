@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+<!-- base_and_header.html -->
+{% block content_base %}
+  <style>
+      .navbar-nav {
+          gap: 10px;
+      }
+
+      .logo {
+          margin-right: 30px;
+      }
+
+      .navbar {
+          background-color: white !important;
+      }
+
+      .navbar-nav a {
+          color: black;
+      }
+
+      .navbar-toggler {
+          background-color: var(--verdigris);
+      }
+  </style>
+  <div class="container">
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+      <div class="container-fluid">
+        <h4 class="logo">SmartCare Surgery</h4>
+        <button class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav"
+                aria-controls="navbarNav"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            {% if user_data.role == "patient" %}
+              <li class="nav-item">
+                <a class="nav-link"   href="{% url 'patient_main' %}">Dashboard</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'patients_appointments:booking' %}">Book</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link"
+                   href="{% url 'patients_appointments:patient_appointments_list' %}">Appointments</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link"  href="{% url 'patients_prescription' %}">Prescriptions</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'index' %}">Account</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'login_page' %}">Logout</a>
+              </li>
+            {% endif %}
+            {% if user_data.role == "doctor" or user_data.role == "nurse" %}
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'doctor_nurse_main' %}">Dashboard</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "
+                   href="{% url 'doctor_nurse_appointments:appointments_list' %}">Appointments</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link " href="{% url 'doctor_nurse_prescriptions' %}">Prescriptions</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'index' %}">Account</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'login_page' %}">Logout</a>
+              </li>
+            {% endif %}
+            {% if user_data.role == "admin" %}
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'admin_main' %}">Dashboard</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'patientDetails' %}">Patients</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'admin_payment' %}">Payments</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'staffDetail' %}">Staff</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'admin_appointments:appointment_details' %}">Appointments</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'admin_staffrate' %}">Rates</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'admin_report' %}">Reports</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'index' %}">Account</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link "  href="{% url 'login_page' %}">Logout</a>
+              </li>
+            {% endif %}
+          </ul>
+          <h5 class="ms-auto">Logged in as {{ user_data.name }}.</h5>
+        </div>
+      </div>
+    </nav>
+    {% comment %} <header class="d-flex py-3">
+    <h4>SmartCare Surgery</h4>
+    <h5 class="ms-auto">Logged in as {{ user_data.name }}.</h4>
+    <!-- <ul class="nav nav-pills">
+                <li class="nav-item"><a href="#" class="nav-link ">Home</a></li> !-->
+      {% if user_data.role == "patient" %}
+
+      {% endif %}
+    </header> {% endcomment %}
+  </div>
+  <!-- Navbar, header, or other common elements can go here -->
+  {% block content %}<!-- Content from child templates will be inserted here -->{% endblock %}
+{% endblock %}

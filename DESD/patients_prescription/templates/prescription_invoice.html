@@ -1,0 +1,6 @@
+{% extends "prescription_invoice_template.html" %}
+{% load static %}
+{% block actionButtonsBlock %}
+    <button class="btn btn-lg button btn-main"
+            onclick="navigateToUrl('{% url 'patients_prescription' %}')">Back</button>
+{% endblock %}

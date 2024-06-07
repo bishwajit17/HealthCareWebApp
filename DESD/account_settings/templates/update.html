@@ -1,0 +1,469 @@
+{% extends 'base_and_header.html' %}
+{% load static %}
+{% block content %}
+{% include 'address_validation.html' %}
+    <style>
+        .action-btns-sub {
+            display: flex;
+            justify-content: space-evenly;
+        }
+
+        span.input-group-text {
+            min-width: 100px;
+            justify-content: center;
+        }
+
+        :root {
+            --password-confirm-display: None;
+        }
+
+        /* Style the modal */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */            
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            
+            transition: opacity 0.3s ease; /* Transition effect to fade in */
+        }
+
+        /* Modal Content */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            
+        }
+
+        /* Close Button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,.close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .autocomplete-container {
+        margin-bottom: -1px;
+        width: 71%;
+        border-radius: 0;
+      }
+
+      .input-container {
+        display: flex;
+        position: relative;
+      }
+
+      .input-container input {
+        flex: 1;
+        outline: none;
+        
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        padding: 10px;
+        padding-right: 31px;
+        font-size: 16px;
+      }
+
+      .autocomplete-items {
+        position: absolute;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0px 2px 10px 2px rgba(0, 0, 0, 0.1);
+        border-top: none;
+        background-color: #fff;
+
+        z-index: 99;
+        top: calc(100% + 2px);
+        left: 0;
+        right: 0;
+      }
+
+      .autocomplete-items div {
+        padding: 10px;
+        cursor: pointer;
+      }
+
+      .autocomplete-items div:hover {
+        /*when hovering an item:*/
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .autocomplete-items .autocomplete-active {
+        /*when navigating through the items using the arrow keys:*/
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .clear-button {
+        color: rgba(0, 0, 0, 0.4);
+        cursor: pointer;
+        
+        position: absolute;
+        right: 5px;
+        top: 0;
+
+        height: 100%;
+        display: none;
+        align-items: center;
+      }
+
+      .clear-button.visible {
+        display: flex;
+      }
+
+      .clear-button:hover {
+        color: rgba(0, 0, 0, 0.6);
+      }
+
+    </style>
+  
+    <div class="justify-content-center d-flex mt-5">        
+        <form id="update-form" action="update_record/" method="post">
+            {% csrf_token %}
+                <div class="form-container section">
+                    <h4 class="mb-4 pb-3 text-center">Update Account Settings</h4>
+                    <label for="username" class="form-label">Username and password are used to login to your account.</label>
+                
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" id="username-span">Username</span>
+                        <input type="text" id="user" name="user" value="{{ user_data.username }}" class="form-control {% if 'username_invalid' in errors or  'username_unique' in errors %} is-invalid {% endif %}" 
+                        placeholder="Change Username..." aria-label="Username field" autocomplete="off" readonly>
+
+                        <button class="btn btn-main btn-outline-secondary" type="button" id="username_btn" onclick="userfield_toggle()">Edit</button>
+                        {% if 'username_invalid' in errors %}
+                            <div class="invalid-feedback">Please enter a valid username. Must be at least 3 characters long and only contain letters and numbers.</div>
+                        {% endif %}
+
+                        {% if 'username_unique' in errors %}
+                            <div class="invalid-feedback">Username is already taken. Try again.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" id="password-span">Password</span>
+                        <input type="password" id="password" name="password" class="form-control {% if 'password_invalid' in errors %} is-invalid {% endif %}" 
+                        placeholder="Change password..." aria-label="Password field" autocomplete="off" readonly/>
+                        <button class="btn btn-main btn-outline-secondary" type="button" id="password-button">Edit</button>
+                        <div class="invalid-feedback">
+                            Please enter a valid password.
+                            <ul>
+                                <li>Must be at least 8 characters long</li>
+                                <li>Must contain at least one uppercase and lowercase letter</li>
+                                <li>Must contain at least one number</li>
+                                <li>Must contain at least one special character</li>
+                            </ul>
+                        </div>
+                    </div>
+                
+                    <div class="input-group mb-3">
+                        <input type="password" id="password_confirm" name="password_confirm" class="form-control {% if 'password_mismatch' in errors %} is-invalid {% endif %}" 
+                        placeholder="Confirm new password..." aria-label="Password confirm field" autocomplete="off" style="display: var(--password-confirm-display)" readonly/>
+                        <div class="invalid-feedback">Passwords must match.</div>
+                    </div>
+                
+                    <div id="passwordError" class="error-message" class="form-text">Your password must be 8-20 characters long, contain letters and numbers.</div>     
+                
+                    <br>
+
+                    <label for="postcode" class="form-label">Personal details used for communication and issuing prescription.</label>
+
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" id="name-span">Name</span>
+                        <input type="text" id="name" name="name" class="form-control {% if 'name_invalid' in errors %} is-invalid {% endif %}" value="{{ user_data.name }}" placeholder="Change name..." aria-label="Name field" autocomplete="off" readonly/>
+                        <button class="btn btn-main btn-outline-secondary" type="button" id="name_btn" onclick="namefield_toggle()">Edit</button>
+                        <div class="invalid-feedback">Please enter a valid name.</div> 
+                    </div>
+
+                    {% comment %} <div class="input-group mb-3">
+                        <span class="input-group-text" id="postcode-span">Postcode</span>
+                        <input type="text" id="pstcde" name="pstcde" class="form-control {% if 'postcode_invalid' in errors %} is-invalid {% endif %}" value="{{ user_data.postcode }}" placeholder="Change postcode..." aria-label="Postcode field" autocomplete="off"  readonly/>
+                        <button class="btn btn-main btn-outline-secondary" type="button" id="pstcde_btn" onclick="postcodefield_toggle()">Edit</button>
+                        <div class="invalid-feedback">Please enter a valid postcode.</div>
+                    </div>
+         {% endcomment %}
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" id="address-span">Address</span>
+                        <input type="hidden" name="postcode" id="hiddenPostcode" />
+                        <input type="hidden" name="address" id="hiddenAddress" />
+                        <div class="autocomplete-container" id="autocomplete-container" class="form-control"></div>
+                        {% comment %} <input type="text" id="address" name="address" value="{{ user_data.address }}" class="form-control {% if 'address_invalid' in errors %} is-invalid {% endif %}" placeholder="Change Address..." aria-label="Address field" autocomplete="off"  readonly/> {% endcomment %}
+                        <button class="btn btn-main btn-outline-secondary" type="button" id="address_btn" onclick="addressfield_toggle()">Edit</button>
+                        <div class="invalid-feedback">Please enter a valid address.</div>
+                    </div>            
+      
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" id="phone-span">Phone</span>
+                        <input type="text" id="phone" name="phone" value="{{ user_data.phone_number }}" class="form-control {% if 'phone_invalid' in errors %} is-invalid {% endif %}" placeholder="Change phone..." aria-label="Phone field" autocomplete="off" readonly/>
+                        <button class="btn btn-main btn-outline-secondary" type="button" id="phone_btn" onclick="phonefield_toggle()">Edit</button>
+                        <div class="invalid-feedback">Please enter a valid phone number. Must be 11 digits long.</div>
+                    </div>
+      
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" id="email-span">Email</span>
+                        <input type="email" id="email" name="email" value="{{ user_data.email }}" class="form-control {% if 'email_invalid' in errors %} is-invalid {% endif %}" placeholder="Change email..." aria-label="Email field" autocomplete="off" readonly/>
+                        <button class="btn btn-main btn-outline-secondary" type="button" id="email_btn" onclick="emailfield_toggle()">Edit</button>
+                        <div class="invalid-feedback">Please enter a valid email address.</div>
+                    </div>
+      
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" id="dob-span">Date of Birth</span>
+                        <input type="date" id="dob" name="dob" value="{{ user_data.date_of_birth }}" class="form-control {% if 'date_invalid' in errors %} is-invalid {% endif %}" placeholder="Change date of birth..." aria-label="Date of Birth field" autocomplete="off" readonly/>
+                        <button class="btn btn-main btn-outline-secondary" type="button" id="dob_btn" onclick="dobfield_toggle()">Edit</button>                    
+                        <div class="invalid-feedback">Date of Birth can not be in the future.</div>
+                    </div>
+
+                    <div class="action-btns d-grid">
+                        {% if user_data.role == "patient" %}
+                            <a class="btn btn-main mt-2" href="extract_data_csv/">Request Data Extract</a>
+                        {% elif user_data.role == "admin" %}
+                            <div>
+                                <button type="button" class="btn btn-main mt-2" style="width: 100%; margin-right: 5px;">Add New Admin</button>
+                            </div>
+                        {% endif %}
+                        <a class="btn btn-main mt-2" data-bs-toggle="modal" data-bs-target="#deleteModal">Delete Account</a>
+                        <div class="action-btns-sub">
+                            <button type="button" class="btn btn-main mt-2" id="modalButton" style="width: 100%; margin-right: 5px;">Go Back</button>
+                            <button class="btn btn-main mt-2" type="submit" value="submit" style="width: 100%">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+        </form>        
+        
+        <!-- Confirm Delete Button Modal -->
+        <form id="delete-form" action="delete/" method="post">
+            {% csrf_token %}
+            <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteModalLabel">Delete Account Confirmation</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete the following account? {{name}}</p>
+                            <div class="input-group mb-3">                                        
+                                <span class="input-group-text" id="password-span">Password</span>
+                                <input type="password" id="confirm_pass" name="confirm_pass" class="form-control" placeholder="Confirm password..." aria-label="Password field" autocomplete="off"/>
+                            </div>
+                            
+                            <div id="error-message" class="alert alert-danger" role="alert" style="display: none;">
+                                Incorrect password. Please try again.
+                            </div>
+                        </div>
+                
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-danger" href="delete/" id="delete-account-btn">Delete Account</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>                 
+    </div>      
+  
+    <!-- Go back button Modal -->
+    <div id="myModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="MyModalLabel">Go Back</h5>
+                    <span class="close">&times;</span>
+                </div>
+
+                <div class="modal-body">
+                    <p>Are you sure you would like to go back? {{name}}</p>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="closeButton" class="btn btn-primary">Close</button>
+                    <a type="button" href="goback/" id="goBackButton" class="btn btn-success">Go Back</a>
+                </div>            
+            </div>
+        </div>
+    </div> 
+
+<script>
+    // Function to check for changed input values
+    function checkChanges() {
+        var modalText = document.getElementById("modalText");
+        var inputs = document.querySelectorAll('input');
+        var changedValues = [];
+
+        inputs.forEach(function(input) {
+            if (input.value !== input.defaultValue) {
+                changedValues.push(input.name + ": " + input.value);
+            }
+        });
+
+        if (changedValues.length > 0) {
+            modalText.innerText = "Changes have been made. Are you sure you want to go back without saving?\n Changed Values:\n " + changedValues.join("\n");
+            // Display the modal
+            modal.style.display = "block"; 
+        } 
+        else {
+            // If no changes, go back directly
+            goBack(); 
+        }
+    }
+
+    // Go back function
+    function goBack() {
+        // Perform redirection based on user role
+        window.location.href = "{% url 'goback' %}";
+    }
+
+    // Get the button that opens the modal
+    var btn = document.getElementById("modalButton");
+    // Get the modal
+    var modal = document.getElementById("myModal");
+    // Get the close button
+    var closeBtn = document.getElementById("closeButton");
+    // When the user clicks the button, check for changes
+    btn.onclick = function() {
+        checkChanges();
+    }
+    // When the user clicks on close button, close the modal
+    closeBtn.onclick = function() {
+        modal.style.display = "none";
+    }
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
+
+<script>
+    const ButtonSaveText = 'Save';
+    const ButtonEditText = 'Edit';
+
+    function editButtonOnClickEvent(target) {
+        target.previousElementSibling.readOnly = !target.previousElementSibling.readOnly;
+        if (target.previousElementSibling.readOnly) {
+            target.textContent = ButtonEditText;
+        } else {
+            target.textContent = ButtonSaveText;
+        }
+    }
+
+    document.getElementById("password-button").addEventListener("click", (event) => {
+        editButtonOnClickEvent(document.getElementById("password-button"));
+    });
+
+    document.getElementById("password-button").addEventListener("click", (event) => {
+        const target = document.getElementById("password_confirm");
+        target.readOnly = !target.readOnly;
+        document.documentElement.style.setProperty('--password-confirm-display', 'block');
+    });
+
+    function userfield_toggle() {
+        var username_field = document.getElementById('user');
+        var button = document.getElementById('username_btn');
+        
+        if (username_field.readOnly) {
+            username_field.readOnly = false;
+            button.textContent = 'Save';
+        } 
+        else {
+            username_field.readOnly = true;
+            button.textContent = 'Edit';
+        }
+    }
+
+    function namefield_toggle() {
+        var name_field = document.getElementById('name');
+        var button = document.getElementById('name_btn');
+          
+        if (name_field.readOnly) {
+            name_field.readOnly = false;
+            button.textContent = 'Save';
+        } 
+        else {
+            name_field.readOnly = true;
+            button.textContent = 'Edit';
+        }
+    }
+
+    function postcodefield_toggle() {
+        var postcode_field = document.getElementById('pstcde');
+        var button = document.getElementById('pstcde_btn');
+          
+        if (postcode_field.readOnly) {
+            postcode_field.readOnly = false;
+            button.textContent = 'Save';
+        } 
+        else {
+            postcode_field.readOnly = true;
+            button.textContent = 'Edit';
+        }
+    }
+
+    function addressfield_toggle() {
+        var address_field = document.getElementById('address');
+        var button = document.getElementById('address_btn');
+          
+        if (address_field.readOnly) {
+            address_field.readOnly = false;
+            button.textContent = 'Save';
+        } 
+        else {
+            address_field.readOnly = true;
+            button.textContent = 'Edit';
+        }
+    }
+
+    function phonefield_toggle() {
+        var phone_field = document.getElementById('phone');
+        var button = document.getElementById('phone_btn');
+          
+        if (phone_field.readOnly) {
+            phone_field.readOnly = false;
+            button.textContent = 'Save';
+        } 
+        else {
+            phone_field.readOnly = true;
+            button.textContent = 'Edit';
+        }
+    }
+
+    function emailfield_toggle() {
+        var email_field = document.getElementById('email');
+        var button = document.getElementById('email_btn');
+          
+        if (email_field.readOnly) {
+            email_field.readOnly = false;
+            button.textContent = 'Save';
+        } 
+        else {
+            email_field.readOnly = true;
+            button.textContent = 'Edit';
+        }
+    }
+
+    function dobfield_toggle() {
+        var dob_field = document.getElementById('dob');
+        var button = document.getElementById('dob_btn');
+          
+        if (dob_field.readOnly) {
+            dob_field.readOnly = false;
+            button.textContent = 'Save';
+        } 
+        else {
+            dob_field.readOnly = true;
+            button.textContent = 'Edit';
+        }
+    }
+</script>
+
+{% endblock %}

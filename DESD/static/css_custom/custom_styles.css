@@ -1,0 +1,28 @@
+:root {
+    --white: #ffffff;
+    --black: #000000;
+    --cyclamen: #f962a3;
+    --verdigris: #39b8c3;
+  }
+
+  .btn-secondary {
+    background-color: var(--cyclamen); /* Use custom cyclamen color */
+    color: var(--white); /* Text color */
+  }
+  
+  .btn-main {
+    --bs-btn-color: #000;
+    --bs-btn-bg: #39B8C3;
+    /* --bs-btn-border-color: #0d6efd; */
+    --bs-btn-hover-color: #000;
+    --bs-btn-hover-bg: #F962A3;
+    /* --bs-btn-hover-border-color: #0a58ca; */
+    --bs-btn-focus-shadow-rgb: 49,132,253;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #bb2466;
+    /* --bs-btn-active-border-color: #0a53be; */
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: #a1a1a1;
+    /* --bs-btn-disabled-border-color: #0d6efd; */
+  }

@@ -1,0 +1,737 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+    <style>
+        table,
+        label.btn,
+        button,
+        .modal-body {
+            font-size: large !important;
+        }
+
+        td,
+        th {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .main-wrapper {
+            flex-direction: column;
+        }
+
+        .btn-table-cell {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .table-container {
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            /* Optional: Set background color to match table background */
+            z-index: 1;
+            /* Optional: Ensure it's above other elements */
+        }
+
+        .bottom-buttons {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .filter-buttons {
+            display: flex;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .eol {
+            text-align: center;
+        }
+
+        .loading-div {
+            gap: 10px;
+            justify-content: center;
+            display: flex;
+        }
+
+        .modal-footer {
+            justify-content: space-between;
+        }
+    </style>
+    <!-- Cancel Prescription Modal -->
+    <form id="cancelForm" action="{% url 'handle_prescription_cancellation' %}" method="post">
+        <div class="modal fade"
+             id="cancelModal"
+             tabindex="-1"
+             aria-labelledby="cancelModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cancelModalLabel">Cancel prescription?</h5>
+                    </div>
+                    <div class="modal-body" id="cancelModalBody">
+                        Are you sure you want to cancel the prescription "<span id="cancelModal_prescriptionName"></span>" for "<span id="cancelModal_patientName"></span>"?
+                        {% csrf_token %}
+                        <div class="form-floating mt-2 mb-3">
+                            <select class="form-select"
+                                    id="cancellationType"
+                                    name="cancellationType"
+                                    aria-label="cancellation type">
+                                <option selected value="4">Incorrect prescription</option>
+                                <option value="5">Outdated prescription</option>
+                                <option value="6">Cancelled prescription</option>
+                            </select>
+                            <label for="cancellationType">Cancellation type</label>
+                        </div>
+                        <input type="hidden" name="prescription_assignment_id" id="prescription_assignment_id"></input>
+                        <div class="form-floating">
+                            <textarea class="form-control"
+                                      placeholder="Cancel reason"
+                                      id="cancelReason"
+                                      name="cancelReason"
+                                      style="height: 100px"></textarea>
+                            <label for="cancelReason">Cancel reason</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-main" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-main" id="cancelPresButton" data-prescriptionAssID="">
+                            Cancel prescription
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+    <!-- Approve Prescription Modal -->
+    <form id="approveForm" action="{% url 'handle_prescription_approval' %}" method="post">
+        <div class="modal fade"
+             id="approveModal"
+             tabindex="-1"
+             aria-labelledby="approveModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="approveModalLabel">Approve prescription?</h5>
+                    </div>
+                    <div class="modal-body" id="approveModalBody">
+                        Are you sure you want to approve the prescription "<span id="approveModal_prescriptionName"></span>" for "<span id="approveModal_patientName"></span>"?
+                        {% csrf_token %}
+                        <div class="form-floating mt-2 mb-3">
+                            <textarea class="form-control"
+                                      placeholder="Prescription name"
+                                      name="prescription_name"
+                                      id="prescprtionNameID_input"
+                                      required></textarea>
+                            <label for="prescriptionName">Prescription name</label>
+                            <input type="hidden" name="patient_id" id="patient_id_input"></input>
+                            <input type="hidden" name="prescription_assignment_id" id="prescription_assignment_id_input"></input>
+
+                        </div>
+                        <div class="form-floating mb-3">
+                            <select class="form-select"
+                                    id="prescriptionTypeID_input"
+                                    name="prescription_type"
+                                    aria-label="prescription type">
+                                <option selected value="Tablets">Tablets</option>
+                                <option value="Drops">Drops</option>
+                                <option value="Inhalers">Inhalers</option>
+                                <option value="Powder">Powder</option>
+                                <option value="Capsules">Capsules</option>
+                                <option value="Injections">Injections</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <label for="prescriptionType">Prescription type</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="number"
+                                   class="form-control"
+                                   name="quantity"
+                                   id="quantity"
+                                   placeholder="Quantity"
+                                   value="1"
+                                   min="1"
+                                   max="99999"
+                                   required />
+                            <label for="quantity">Quantity</label>
+                        </div>
+                        <div class="form-floating">
+                            <input type="number"
+                                   class="form-control"
+                                   name="cost"
+                                   id="cost"
+                                   placeholder="Cost"
+                                   value="1"
+                                   min="0"
+                                   max="99999"
+                                   required />
+                            <label for="cost">Cost (£)</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-main" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-main">
+                            Approve prescription
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+    <main class="container">
+        <h1>Patient prescriptions.</h1>
+        <div class="main-wrapper justify-content-center d-flex mt-4">
+            <h4 class="section-header d-flex justify-content-center mb-4">Sort Prescriptions by collection status:</h4>
+            <div class="filter-buttons mb-4">
+                <div class="btn-group" role="group" aria-label="Prescription filter">
+                    <input type="radio"
+                           class="btn-check"
+                           name="options"
+                           id="option1"
+                           value="awaiting_decision"
+                           autocomplete="off" />
+                    <label class="btn btn-main border-0" for="option1">Awaiting Decision</label>
+                    <input type="radio"
+                           class="btn-check"
+                           name="options"
+                           id="option2"
+                           value="waiting_to_collect"
+                           autocomplete="off" />
+                    <label class="btn btn-main border-0" for="option2">Waiting to Collect</label>
+                    <input type="radio"
+                           class="btn-check"
+                           name="options"
+                           value="collected_cancelled"
+                           id="option3"
+                           autocomplete="off" />
+                    <label class="btn btn-main border-0" for="option3">Collected/Cancelled</label>
+                </div>
+            </div>
+            <div class="loading-div text-center" id="loadingDiv">
+                <h4>Loading...</h4>
+                <div class="spinner-border" aria-hidden="true"></div>
+            </div>
+            <div class="table-container" id="tableContainer">
+                <table id="cancelled_collected_table" class="table table-hover">
+                    <tbody>
+                    </tbody>
+                </table>
+                <table id="awaiting_decision_table" class="table table-hover">
+                    <tbody>
+                    </tbody>
+                </table>
+                <table id="waiting_to_collect_table" class="table table-hover">
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <div class="toast-container position-fixed bottom-0 end-0 p-3"
+                 id="toastContainer">
+                <div id="liveToast"
+                     class="toast"
+                     role="alert"
+                     aria-live="assertive"
+                     aria-atomic="true">
+                    <div class="toast-header">
+                        <strong class="me-auto">Update Successful</strong>
+                        <small>Just Now</small>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="toast"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">Successfully marked as collected.</div>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-main btn-lg mb-4 mt-4"
+                onclick="navigateToUrl('{% url 'doctor_nurse_main' %}')">Back</button>
+        <!--<button class="btn btn-main btn-lg mb-4 mt-4 cancelledbtn">Buttony</button>-->
+    </main>
+    <script>
+    // Function to set a cookie
+    function setCookie(name, value, days) {
+        const expires = new Date();
+        expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+        document.cookie = name + '=' + value + ';expires=' + expires.toUTCString();
+    }
+
+    // Function to get a cookie
+    function getCookie(name) {
+        const keyValue = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return keyValue ? keyValue[2] : null;
+    }
+
+    function insertEndOfListRow(tableBody) {
+        var eolRow = tableBody.insertRow(-1);
+        eolRow.className = "eol";
+        // Create the <td> element
+        var cell = eolRow.insertCell(0);
+        cell.colSpan = 7; // Set the colspan attribute
+    
+        var heading = document.createElement("h4");
+        heading.textContent = "End of list.";
+    
+        cell.appendChild(heading);
+    }
+
+    function fetchCollectedAndCancelledPrescriptions() {
+        checkSessionStatus();
+        showLoadingDiv();
+        var url = "{% url 'collected_and_cancelled_list' %}";
+        var csrf_token = '{{ csrf_token }}';
+    
+        var postData = {
+            'csrfmiddlewaretoken': csrf_token
+        };
+    
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: postData,
+            success: function(data) {
+                var collectedAndCancelledList = data.collected_and_cancelled_list;
+                /*console.log('collectedAndCancelledList', collectedAndCancelledList);*/
+                var table = document.getElementById("cancelled_collected_table");
+                var tableBody = table.getElementsByTagName('tbody')[0];
+                var tableHead = table.querySelector('thead');
+                var headerText = 'Cancelled/Collected Prescriptions';
+    
+                // Clear previous content of the table body
+                tableBody.innerHTML = '';
+    
+                if (!tableHead) {
+                    // Create table head if it doesn't exist
+                    tableHead = table.createTHead();
+                    tableHead.className = "sticky-header"
+                    var headRow = tableHead.insertRow(0);
+    
+                    // Create column titles
+                    var columnTitles = ['Patient Name', 'Prescription Name', 'Prescription Type', 'Prescription Status', 'Collection Status', 'Issued Date', 'Actions'];
+                    for (var i = 0; i < columnTitles.length; i++) {
+                        var th = document.createElement('th');
+                        th.textContent = columnTitles[i];
+                        headRow.appendChild(th);
+                    }
+                }
+    
+                if (collectedAndCancelledList.length === 0) {
+                    // Show message if there are no records
+                    tableBody.innerHTML = '<tr><td colspan="7">There are no Collected/Cancelled Records</td></tr>';
+                } else {
+                    collectedAndCancelledList.forEach(function(item) {
+                        var row = tableBody.insertRow(-1);
+    
+                        // Insert data into cells
+                        var cell1 = row.insertCell(0);
+                        cell1.textContent = item.patient_name;
+    
+                        var cell2 = row.insertCell(1);
+                        cell2.textContent = item.prescription_name;
+    
+                        var cell3 = row.insertCell(2);
+                        cell3.textContent = item.prescription_type;
+    
+                        var cell4 = row.insertCell(3);
+                        cell4.textContent = item.prescription_status;
+    
+                        var cell5 = row.insertCell(4);
+                        cell5.textContent = item.collection_status;
+    
+                        var cell6 = row.insertCell(5);
+                        cell6.textContent = item.issued_date;
+    
+                        var cell7 = row.insertCell(6);
+                        if (item.collection_status === "cancelled") {
+                            cell7.innerHTML = '<div class="btn-table-cell"> <button class="btn btn-main btn-in-table" onclick="viewCancellationReason(' + item.prescription_assignment_id + ')"><i class="bi bi-file-earmark-break"></i> View Reason</button> </div>';
+                        } else if (item.collection_status === "collected") {
+                            cell7.innerHTML = '<div class="btn-table-cell"> <button class="btn btn-main btn-in-table" onclick="handleInvoiceView(' + item.prescription_assignment_id + ')"><i class="bi bi-file-earmark-text"></i> View Invoice</button> </div>';
+                        }
+                    });
+                    insertEndOfListRow(tableBody);
+                    hideLoadingDiv();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error handling prescription request:', error);
+            }
+        });
+    }
+
+    function fetchAwaitingDecisionPrescriptions() {
+        checkSessionStatus();
+        showLoadingDiv();
+        var url = "{% url 'awaiting_decision_list' %}";
+        var csrf_token = '{{ csrf_token }}';
+    
+        var postData = {
+            'csrfmiddlewaretoken': csrf_token
+        };
+    
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: postData,
+            success: function(data) {
+                var awaitingDecisionList = data.awaiting_decision_list;
+                var table = document.getElementById("awaiting_decision_table");
+                var tableBody = table.getElementsByTagName('tbody')[0];
+                var tableHead = table.querySelector('thead');
+                var headerText = 'Awaiting Decision Prescriptions';
+    
+                // Clear previous content of the table body
+                tableBody.innerHTML = '';
+    
+                if (!tableHead) {
+                    // Create table head if it doesn't exist
+                    tableHead = table.createTHead();
+                    var headRow = tableHead.insertRow(0);
+    
+                    // Create column titles
+                    var columnTitles = ['Patient Name', 'Prescription Name', 'Prescription Type', 'Prescription Status', 'Actions'];
+                    for (var i = 0; i < columnTitles.length; i++) {
+                        var th = document.createElement('th');
+                        th.textContent = columnTitles[i];
+                        headRow.appendChild(th);
+                    }
+                }
+    
+                if (awaitingDecisionList.length === 0) {
+                    // Show message if there are no records
+                    tableBody.innerHTML = '<tr><td colspan="5">There are no Awaiting Decision Records</td></tr>';
+                } else {
+                    awaitingDecisionList.forEach(function(item) {
+                        var row = tableBody.insertRow(-1);
+    
+                        // Insert data into cells
+                        var cell1 = row.insertCell(0);
+                        cell1.textContent = item.patient_name;
+    
+                        var cell2 = row.insertCell(1);
+                        cell2.textContent = item.prescription_name;
+    
+                        var cell3 = row.insertCell(2);
+                        cell3.textContent = item.prescription_type;
+    
+                        var cell4 = row.insertCell(3);
+                        cell4.textContent = item.prescription_status;
+    
+                        var cell5 = row.insertCell(4);
+                        if (item.collection_status === "awaiting decision") {
+                            var buttonsHTML = '<div class="btn-table-cell">';
+                                buttonsHTML += `<button id="cancelButton" class="btn btn-main btn-in-table cancelBtn" data-bs-toggle="modal" data-bs-target="#cancelModal" data-prescriptionData="${item.prescription_assignment_id}-${item.prescription_name}-${item.patient_name}">Cancel</button>`;
+                                buttonsHTML += `<button id="approveButton" class="btn btn-main btn-in-table approveBtn" data-bs-toggle="modal" data-bs-target="#approveModal" data-approveData="${item.prescription_assignment_id}-${item.prescription_name}-${item.patient_id}-${item.patient_name}-${item.prescription_type}">Approve</button>`;
+                            buttonsHTML += '</div>';
+                            cell5.innerHTML = buttonsHTML;
+                        }
+
+                        var cancelButtons = document.querySelectorAll('.cancelBtn');
+                        var cancelModal_prescriptionName= document.getElementById('cancelModal_prescriptionName');
+                        var cancelModal_patientName= document.getElementById('cancelModal_patientName');
+                        
+                        cancelButtons.forEach(function(cancelButton) {
+                            cancelButton.addEventListener('click', function(event) {
+
+                                const prescriptionData = this.getAttribute('data-prescriptionData');
+                                /* console.log('cancelModal', prescriptionData) */
+        
+                                const [presAssID, presName, patName] = prescriptionData.split('-');
+                                cancelModal_prescriptionName.textContent = presName;
+                                cancelModal_patientName.textContent = patName;
+
+                                document.getElementById('prescription_assignment_id').value = presAssID;
+                            });
+                        });
+
+                        var approveBtn = document.querySelectorAll('.approveBtn');
+                        var approveModal_prescriptionName= document.getElementById('approveModal_prescriptionName');
+                        var approveModal_patientName= document.getElementById('approveModal_patientName');
+                        
+                        approveBtn.forEach(function(approveButton) {
+                            approveButton.addEventListener('click', function(event) {
+
+                                const approveData = this.getAttribute('data-approveData');
+                                /* console.log('approveModal', approveData) */
+                                const [presAssID, presName, patID, patName, presType] = approveData.split('-');
+                                approveModal_prescriptionName.textContent = presName;
+                                approveModal_patientName.textContent = patName;
+
+                                document.getElementById('prescription_assignment_id_input').value = presAssID;
+                                document.getElementById('prescprtionNameID_input').value = presName;
+                                document.getElementById('patient_id_input').value = patID;
+                                document.getElementById('prescriptionTypeID_input').value = presType;
+                            });
+                        });
+                        
+                    });
+                    insertEndOfListRow(tableBody);
+                    hideLoadingDiv();
+                }
+    
+            },
+            error: function(xhr, status, error) {
+                console.error('Error handling prescription request:', error);
+            }
+        });
+    }
+    
+    function fetchWaitingToCollectPrescriptions() {
+        checkSessionStatus();
+        showLoadingDiv();
+        var url = "{% url 'waiting_to_collect_list' %}";
+        var csrf_token = '{{ csrf_token }}';
+        
+        var postData = {
+            'csrfmiddlewaretoken': csrf_token
+        };
+        
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: postData,
+            success: function(data) {
+                var waitingToCollectList = data.waiting_to_collect_list;
+                var table = document.getElementById("waiting_to_collect_table");
+                var tableBody = table.getElementsByTagName('tbody')[0];
+                var tableHead = table.querySelector('thead');
+                var headerText = 'Waiting to Collect Prescriptions';
+    
+                // Clear previous content of the table body
+                tableBody.innerHTML = '';
+    
+                if (!tableHead) {
+                    // Create table head if it doesn't exist
+                    tableHead = table.createTHead();
+                    var headRow = tableHead.insertRow(0);
+    
+                    // Create column titles
+                    var columnTitles = ['Patient Name', 'Prescription Name', 'Prescription Type', 'Prescription Status', 'Issued Date','Actions'];
+                    for (var i = 0; i < columnTitles.length; i++) {
+                        var th = document.createElement('th');
+                        th.textContent = columnTitles[i];
+                        headRow.appendChild(th);
+                    }
+                }
+    
+                if (waitingToCollectList.length === 0) {
+                    // Show message if there are no records
+                    tableBody.innerHTML = '<tr><td colspan="5">There are no Awaiting Decision Records</td></tr>';
+                } else {
+                    waitingToCollectList.forEach(function(item) {
+                        var row = tableBody.insertRow(-1);
+    
+                        // Insert data into cells
+                        var cell1 = row.insertCell(0);
+                        cell1.textContent = item.patient_name;
+    
+                        var cell2 = row.insertCell(1);
+                        cell2.textContent = item.prescription_name;
+    
+                        var cell3 = row.insertCell(2);
+                        cell3.textContent = item.prescription_type;
+    
+                        var cell4 = row.insertCell(3);
+                        cell4.textContent = item.prescription_status;
+
+                        var cell5 = row.insertCell(4);
+                        cell5.textContent = item.issued_date;
+    
+                        var cell5 = row.insertCell(5);
+                        if (item.collection_status === "waiting to collect") {
+                            var buttonsHTML = '<div class="btn-table-cell">';
+                            buttonsHTML += `<button id="cancelButton" class="btn btn-main btn-in-table cancelBtn" data-bs-toggle="modal" data-bs-target="#cancelModal" data-prescriptionData="${item.prescription_assignment_id}-${item.prescription_name}-${item.patient_name}">Cancel</button>`;
+                            buttonsHTML += '<button class="btn btn-main btn-in-table" id="MarkCollectedButton" onclick="handleMarkedBookingRequest(' + item.prescription_assignment_id + ')">Mark Collected</button>';
+                            buttonsHTML += '</div>'
+                            cell5.innerHTML = buttonsHTML;
+
+                            
+                            // Add event listener to the "Mark Collected" button
+                            var markCollectedButton = document.getElementById("MarkCollectedButton");
+                            markCollectedButton.addEventListener("click", function() {
+                                // Show the toast
+                                var toast = document.getElementById("liveToast");
+                                var toastInstance = new bootstrap.Toast(toast);
+                                toastInstance.show();
+                            });
+                            
+                            var cancelButtons = document.querySelectorAll('.cancelBtn');
+                            var cancelModal_prescriptionName= document.getElementById('cancelModal_prescriptionName');
+                            var cancelModal_patientName= document.getElementById('cancelModal_patientName');
+                            
+                            cancelButtons.forEach(function(cancelButton) {
+                                cancelButton.addEventListener('click', function(event) {
+    
+                                    const prescriptionData = this.getAttribute('data-prescriptionData');
+                                    /*console.log('cancelModal', prescriptionData)*/
+            
+                                    const [presAssID, presName, patName] = prescriptionData.split('-');
+                                    cancelModal_prescriptionName.textContent = presName;
+                                    cancelModal_patientName.textContent = patName;
+
+                                    document.getElementById('prescription_assignment_id').value = presAssID;
+                                    /*console.log('value', document.getElementById('prescription_assignment_id').value)*/
+                                });
+                            });
+                        }
+                    });
+                    insertEndOfListRow(tableBody);
+                    hideLoadingDiv();
+                }
+
+            },
+            error: function(xhr, status, error) {
+                console.error('Error handling prescription request:', error);
+            }
+        });
+    }
+
+    $(document).ready(function() {
+        // Function to show/hide tables based on the selected tab
+        checkSessionStatus();
+        function toggleTables(selectedTab) {
+            if (selectedTab === 'option1') {
+                $('#awaiting_decision_table').show();
+                $('#cancelled_collected_table').hide();
+                $('#waiting_to_collect_table').hide();
+            } else if (selectedTab === 'option3') {
+                $('#cancelled_collected_table').show();
+                $('#awaiting_decision_table').hide();
+                $('#waiting_to_collect_table').hide();
+            } else if (selectedTab === 'option2') {
+                $('#waiting_to_collect_table').show();
+                $('#cancelled_collected_table').hide();
+                $('#awaiting_decision_table').hide();
+            }
+        }
+    
+        // Get the selected tab
+        var selectedTab = $('input[name="options"]:checked').attr('id');
+    
+        // Fetch prescriptions based on the selected tab
+        if (selectedTab === 'option1') {
+            fetchAwaitingDecisionPrescriptions();
+        } else if (selectedTab === 'option3') {
+            fetchCollectedAndCancelledPrescriptions();
+        } else if (selectedTab === 'option2') {
+            fetchWaitingToCollectPrescriptions();
+        }
+    
+        // Bind click event to tab buttons to fetch prescriptions accordingly
+        $('#option1, #option2, #option3').click(function() {
+            var selectedTab = $(this).attr('id');
+            toggleTables(selectedTab);
+            if (selectedTab === 'option1') {
+                fetchAwaitingDecisionPrescriptions();
+            } else if (selectedTab === 'option3') {
+                fetchCollectedAndCancelledPrescriptions();
+            } else if (selectedTab === 'option2') {
+                fetchWaitingToCollectPrescriptions();
+            }
+        });
+    });
+    
+    // Get selected Radio Buttons
+    const radioButtons = document.querySelectorAll('input[name="options"]');
+
+    // Get Selected Tables
+    const tables = {
+      'collected_cancelled': document.getElementById('cancelled_collected_table'),
+      'awaiting_decision': document.getElementById('awaiting_decision_table'),
+      'waiting_to_collect': document.getElementById('waiting_to_collect_table')
+    };
+
+    // Check if there's a previously selected option in the cookie
+    let selectedOption = getCookie('selectedOption');
+    if (!selectedOption || selectedOption === 'expired') {
+        // If the cookie doesn't exist or is expired, set it to the default value
+        selectedOption = 'awaiting_decision';
+        setCookie('selectedOption', selectedOption, 1); // Set cookie to expire in 1 day
+    }
+
+    // Select the default option
+    document.querySelector(`input[value="${selectedOption}"]`).checked = true;
+
+    // Event listener for radio button change
+    radioButtons.forEach(button => {
+    button.addEventListener('change', () => {
+        const option = button.value;
+        // Store the selected option in a cookie
+        setCookie('selectedOption', option, 1); // Cookie expires in 1 day
+    });
+    });
+    
+    // Function for handling invoice view
+    function handleInvoiceView(prescription_assignment_id) {
+      window.location.href = "{% url 'view_prescription_invoice' %}?prescription_assignment_id=" + prescription_assignment_id;
+  }
+
+  // Function for viewing cancellation reason
+  function viewCancellationReason(prescription_assignment_id) {
+    window.location.href = "{% url 'view_cancellation_reason' %}?prescription_assignment_id=" +
+        prescription_assignment_id;
+  }
+
+    // Function for marking selected prescprtion as 'collected'
+  function handleMarkedBookingRequest(prescription_assignment_id) {
+    var csrf_token = '{{ csrf_token }}';
+    $.ajax({
+        type: "POST",
+        url: "{% url 'handle_mark_collected' %}",
+        data: {
+            'prescription_assignment_id': prescription_assignment_id,
+            'csrfmiddlewaretoken': csrf_token
+        },
+        success: function(data) {
+            fetchWaitingToCollectPrescriptions();
+            /* console.log('Prescription status updated successfully:', data); */
+
+        },
+        error: function(xhr, textStatus, errorThrown) {
+            console.error('Error updating prescription status:', errorThrown);
+        }
+    });
+}
+
+// Used for triggering the toast 
+$(document).ready(function() {
+    // Check if the prescription_updated cookie is present
+    if (document.cookie.includes('prescription_updated=true')) {
+        // Show the toast
+        const toastTrigger = document.getElementById('MarkCollectedButton');
+        const toastLiveExample = document.getElementById('liveToast');
+        if (toastTrigger) {
+            const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastLiveExample);
+            toastBootstrap.show();
+        }
+
+        // Remove the cookie
+        document.cookie = 'prescription_updated=true; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure';
+
+    }
+});
+
+    function showLoadingDiv() {
+        var loadingDiv = document.getElementById("loadingDiv");
+        var tableDiv = document.getElementById("tableContainer");
+        tableDiv.style.display = "none"
+        loadingDiv.style.display = "flex"
+    }
+
+    function hideLoadingDiv() {
+        var loadingDiv = document.getElementById("loadingDiv");
+        var tableDiv = document.getElementById("tableContainer");
+        tableDiv.style.display = "block"
+        loadingDiv.style.display = "none"
+    }
+  
+    </script>
+{% endblock %}

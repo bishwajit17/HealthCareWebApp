@@ -1,0 +1,445 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+  <head>
+    <meta name="csrf-token" content="{{ csrf_token }}" />
+  </head>
+  <style>
+      table,
+      label.btn,
+      button,
+      .modal-body {
+          font-size: large !important;
+      }
+
+      td,
+      th {
+          text-align: center;
+          vertical-align: middle;
+      }
+
+      .main-wrapper {
+          flex-direction: column;
+      }
+
+      .table-container {
+          max-height: 50vh;
+          overflow-y: auto;
+      }
+
+      .sticky-header {
+          position: sticky;
+          top: 0;
+          background-color: white;
+          /* Optional: Set background color to match table background */
+          z-index: 1;
+          /* Optional: Ensure it's above other elements */
+      }
+
+      .bottom-buttons {
+          display: flex;
+          justify-content: space-between;
+      }
+
+      .filter-buttons {
+          display: flex;
+          flex-direction: column;
+      }
+
+      .btn-actions {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          flex-direction: row;
+          gap: 5px;
+      }
+
+      .eol {
+          text-align: center;
+      }
+
+      .modal-footer {
+          justify-content: space-between;
+      }
+
+      .loading-div {
+          display: none;
+          gap: 10px;
+          justify-content: center;
+      }
+  </style>
+  <div class="modal fade"
+       id="confirmCancelModal"
+       tabindex="-1"
+       aria-labelledby="confirmCancelModalLabel"
+       aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="confirmCancelModalLabel">Confirm cancel appointment?</h1>
+        </div>
+        <div class="modal-body">
+          Clicking "cancel appointment" will cancel the upcoming appointment.
+          Are you sure you want to continue?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-main btn-lg" data-bs-dismiss="modal">Back</button>
+          <!--Fix me: reload the page and cancel appointment-->
+          <button class="btn btn-main btn-reissue btn-lg"
+                  id="confirmCancelBtn"
+                  >Cancel appointment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="container">
+    <h1>{{ user_data.name }}'s appointments.</h1>
+    <div class="main-wrapper justify-content-center d-flex mt-4">
+      <h4 class="section-header d-flex justify-content-center mb-4">Show appointments by status:</h4>
+      <div class="filter-buttons mb-4">
+        <div class="btn-group" role="group" aria-label="grouping type">
+          <input type="radio"
+                 class="btn-check"
+                 name="options"
+                 value="upcoming"
+                 id="option1"
+                 autocomplete="off"
+                 checked />
+          <label class="btn btn-main border-0" for="option1">Upcoming</label>
+          <input type="radio"
+                 class="btn-check"
+                 name="options"
+                 id="option2"
+                 value="completed"
+                 autocomplete="off" />
+          <label class="btn btn-main border-0" for="option2">Completed</label>
+          <input type="radio"
+                 class="btn-check"
+                 name="options"
+                 id="option3"
+                 value="cancelled"
+                 autocomplete="off" />
+          <label class="btn btn-main border-0" for="option3">Cancelled</label>
+        </div>
+      </div>
+      <div class="loading-div text-center" id="loadingDiv">
+        <h4>Loading...</h4>
+        <div class="spinner-border" aria-hidden="true"></div>
+      </div>
+      <div class="table-container mb-4" id="tableContainer">
+        <table class="table table-hover">
+          <thead class="sticky-header">
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Type</th>
+              <th>Staff Name</th>
+              <th>Outcome</th>
+              <th>Manage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for appointment in appointments %}
+              <tr>
+                <td>{{ appointment.appointment_date|date:"Y-m-d" }}</td>
+                <td>
+                  {{ appointment.appointment_start|time:"H:i" }} –
+                  {% if appointment.appointment_end %}{{ appointment.appointment_end|time:"H:i" }}{% endif %}
+                </td>
+                <td>{{ appointment.staff__user__role|title }}</td>
+                <td>{{ appointment.staff__user__name }}</td>
+                <td>{{ appointment.appointment_outcome|title }}</td>
+                <td class="btn-actions">
+                  <div>
+                    {% if appointment.appointment_status == "completed" %}
+                      <button class="btn btn-main btn-in-table"
+                              onclick="redirectToInvoice('{{ appointment.staff__user__role }}','{{ appointment.appointment_date }}', '{{ appointment.appointment_start|time:"H:i" }}', '{{ appointment.appointment_end|time:"H:i" }}')">
+                        <i class="bi bi-file-earmark-text"></i>
+                        View Invoice
+                      </button>
+                    {% elif appointment.appointment_status == "upcoming" %}
+                      {% if appointment.status == 1 %}
+                        <button class="btn btn-main btn-in-table" disabled>
+                          Amend
+                        </button>
+                        <button class="btn btn-main btn-in-table" type="button" data-bs-toggle="modal" data-bs-target="#confirmCancelModal" data-appointment-id="{{ appointment.appointment_id }}" disabled>
+                          Cancel
+                        </button>
+                        <button class="btn btn-main btn-in-table"
+                            onclick="redirectToInvoice('{{ appointment.staff__user__role }}','{{ appointment.appointment_date|date:"Y-m-d" }}', '{{ appointment.appointment_start|date:"H:i:s" }}', '{{ appointment.appointment_end|date:"H:i:s" }}')">
+                          <i class="bi bi-file-earmark-text"></i> View Invoice
+                        </button>
+                      {% else %}
+                        <button class="btn btn-main btn-in-table"
+                                onclick="redirectToBooking('{{ appointment.appointment_date }}', '{{ appointment.appointment_start|time:"H:i" }}', '{{ appointment.staff__user__role }}')">
+                          Amend
+                        </button>
+                        <button class="btn btn-main btn-in-table"
+                                type="button"
+                                data-bs-toggle="modal"
+                                data-bs-target="#confirmCancelModal"
+                                data-appointment-id="{{ appointment.appointment_id }}">
+                          Cancel
+                        </button>
+                        <button class="btn btn-main btn-in-table"
+                                onclick="redirectToInvoice('{{ appointment.staff__user__role }}','{{ appointment.appointment_date|date:"Y-m-d" }}', '{{ appointment.appointment_start|date:"H:i:s" }}', '{{ appointment.appointment_end|date:"H:i:s" }}')">
+                          <i class="bi bi-file-earmark-text"></i> View Invoice
+                        </button>
+                      {% endif %}
+                    {% else %}
+                      <!-- No buttons -->
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+            <tr class="eol">
+              <td colspan=7>
+                <h4>End of list.</h4>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="bottom-buttons">
+      <button type="button"
+              class="btn btn-main btn-lg mb-4"
+              onclick="navigateToUrl('{% url 'patient_main' %}')">Back</button>
+      <button type="button"
+              class="btn btn-main btn-lg mb-4"
+              onclick="setReturnPath()">
+        <i class="bi bi-clipboard2-heart"></i>
+        Book an Appointment
+      </button>
+    </div>
+  </main>
+  <script>
+    status = "{{appointment.appointment_status}}"
+    $('input[name="options"][value="' + status + '"]').prop('checked', true);
+
+    $('input[name="options"]').change(function() {
+            status = $('input[name="options"]:checked').val();
+            updateList()
+          })
+
+    $('#confirmCancelModal').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget); 
+      var appointmentId = button.data('appointment-id');
+      $('#confirmCancelBtn').data('appointment-id', appointmentId);
+    });
+
+    $('#confirmCancelBtn').click(function() {
+      var appointmentId = $(this).data('appointment-id');
+      cancelAppointment(appointmentId);
+    });
+
+    function cancelAppointment(id) {
+      var csrftoken = $('meta[name="csrf-token"]').attr('content');
+      $.ajax({
+        url: "{% url 'patients_appointments:cancel_appointment' %}",
+        type: "POST",
+        data: {
+          'id': id,
+          'csrfmiddlewaretoken': csrftoken ,
+        },
+        success: function(response) {
+          console.log(response);
+          window.location.reload(); 
+        },
+        error: function(err) {
+          console.error(err);
+        }
+      })
+    }
+
+    function toTitleCase(str) {
+        return str.replace(
+            /\w\S*/g,
+            function(txt) {
+                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+            }
+        );
+    }
+
+    function updateList() {
+      var loadingDiv = document.getElementById("loadingDiv");
+      var tableDiv = document.getElementById("tableContainer");
+      tableDiv.style.display = "none"
+      loadingDiv.style.display = "flex"
+      $.ajax({
+        url: "{% url 'patients_appointments:patient_appointments_list' %}",
+        type: "GET",
+        data: {
+          'status': status,
+        },
+        success: function(response) {
+          $("table tbody").empty();
+          if(response.length)
+          {
+
+          
+           $.each(response, function(index, appointment) {
+            var manageButtons = '';
+
+            if (appointment.appointment_status === "completed") {
+              manageButtons = '<button class="btn btn-main btn-in-table" onclick="redirectToInvoice(\'' + appointment.staff__user__role + '\',\'' + appointment.appointment_date + '\', \'' + appointment.appointment_start + '\', \'' + appointment.appointment_end + '\')"><i class="bi bi-file-earmark-text"></i> View Invoice</button>';
+            } else if (appointment.appointment_status === "cancelled") {
+              manageButtons = '<button class="btn btn-main btn-in-table" onclick="redirectToReason(\'' + appointment.appointment_id + '\')"><i class="bi bi-file-earmark-break"></i> View Reason</button>';
+            }
+            else if (appointment.appointment_status === "upcoming") {
+              let disabled = appointment.status === 1 ? 'disabled' : '';
+              manageButtons = `<button class="btn btn-main btn-in-table" ${disabled} onclick="redirectToBooking('${appointment.appointment_date}', '${appointment.appointment_start}', '${appointment.staff_role}')">Amend</button>`;
+              manageButtons += `<button class="btn btn-main btn-in-table" type="button" data-bs-toggle="modal" data-bs-target="#confirmCancelModal" data-appointment-id="${appointment.appointment_id}" ${disabled}>Cancel</button>`;
+              manageButtons += `<button class="btn btn-main btn-in-table" onclick="redirectToInvoice('${appointment.staff__user__role}', '${appointment.appointment_date}', '${appointment.appointment_start}', '${appointment.appointment_end}')"><i class="bi bi-file-earmark-text"></i> View Invoice</button>`;
+            }
+
+            staff_role = toTitleCase(appointment.staff__user__role);
+            appointment_status = toTitleCase(appointment.appointment_status);
+            appointment_outcome = toTitleCase(appointment.appointment_outcome)
+            startTimeFormatted = appointment.appointment_start.substr(0, 5);
+            endTimeFormatted = appointment.appointment_end ? appointment.appointment_end.substr(0, 5) : '';
+            
+            var row = '<tr>' +
+                        '<td>' + appointment.appointment_date + '</td>' +
+                        '<td>' + startTimeFormatted + ' – ' + endTimeFormatted + '</td>' +
+                        '<td>' + (staff_role || '') + '</td>' +
+                        '<td>' + (appointment.staff__user__name || '') + '</td>' +
+                        '<td>' + (appointment_outcome || '') + '</td>' +
+                        '<td class="btn-actions">' + manageButtons + '</td>' +
+                      '</tr>';
+            $("table tbody").append(row);
+          });
+          var eolrow =
+          '<tr class="eol">' +
+            '<td colspan=7>' +
+              '<h4>End of list.</h4>' +
+              '</td>' +
+              '</tr>'
+          $("table tbody").append(eolrow);
+          } else {
+            var eolrow =
+          '<tr class="eol">' +
+            '<td colspan=7>' +
+              '<h4>No appointments found.</h4>' +
+              '</td>' +
+              '</tr>'
+          $("table tbody").append(eolrow);
+          }
+          tableDiv.style.display = "block"
+          loadingDiv.style.display = "none"
+        },
+        error: function(xhr, errmsg, err) {
+          console.log(xhr.status + ": " + xhr.responseText);
+        }
+      });
+    }
+
+    function setReturnPath() {
+        sessionStorage.setItem('returnPath', window.location.pathname);
+        window.location.href = "{% url 'patients_appointments:booking' %}"
+    }
+
+    function redirectToInvoice(role, date, start, end) {
+      
+      let form = document.createElement("form");
+      form.setAttribute("method", "get");
+      form.setAttribute("action", "{% url 'patients_appointments:patient_appointments_invoice' %}");
+      var csrftoken = $('meta[name="csrf-token"]').attr('content');
+
+      let fields = {
+          'type': role,
+          'date': date,
+          'start': start,
+          'end': end,
+          'csrfmiddlewaretoken': csrftoken,
+      };
+
+      for (let key in fields) {
+          let field = document.createElement("input");
+          field.setAttribute("type", "hidden");
+          field.setAttribute("name", key);
+          field.setAttribute("value", fields[key]);
+          form.appendChild(field);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    function redirectToReason(id) {
+      let form = document.createElement("form");
+      form.setAttribute("method", "get");
+      form.setAttribute("action", "{% url 'patients_appointments:patient_appointments_reason' %}");
+      var csrftoken = $('meta[name="csrf-token"]').attr('content');
+
+      let fields = {
+          'id': id,
+          'csrfmiddlewaretoken': csrftoken,
+      };
+
+      for (let key in fields) {
+          let field = document.createElement("input");
+          field.setAttribute("type", "hidden");
+          field.setAttribute("name", key);
+          field.setAttribute("value", fields[key]);
+          form.appendChild(field);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    function toLocalDate(date) {
+        var localDate = new Date(date);
+        var timeZoneOffset = localDate.getTimezoneOffset() * 60000;
+        var adjustedDate = new Date(localDate.getTime() - timeZoneOffset);
+
+        return adjustedDate
+    }
+
+    function redirectToBooking(selectedDateStr, startTime, role) {
+
+      setReturnPath()
+
+      let selectedDate = toLocalDate(selectedDateStr);
+      let dayOfWeek = selectedDate.getDay();
+      let diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; 
+      let firstDayOfWeek = new Date(selectedDate);
+      firstDayOfWeek.setDate(selectedDate.getDate() + diffToMonday);
+ 
+      let diffToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek; 
+      let lastDayOfWeek = new Date(selectedDate);
+      lastDayOfWeek.setDate(selectedDate.getDate() + diffToSunday);
+
+      let firstDayOfWeekStr = firstDayOfWeek.toISOString().split('T')[0];
+      let lastDayOfWeekStr = lastDayOfWeek.toISOString().split('T')[0];
+
+      let form = document.createElement("form");
+      form.setAttribute("method", "post");
+      form.setAttribute("action", "{% url 'patients_appointments:booking' %}");
+      var csrftoken = $('meta[name="csrf-token"]').attr('content');
+
+      let fields = {
+          'start_date': firstDayOfWeekStr,
+          'end_date': lastDayOfWeekStr,
+          'selected_date': selectedDate,
+          'start_time': startTime,
+          'role': role,
+          'csrfmiddlewaretoken': csrftoken,
+      };
+
+      for (let key in fields) {   
+          let field = document.createElement("input");
+          field.setAttribute("type", "hidden");
+          field.setAttribute("name", key);
+          field.setAttribute("value", fields[key]);
+          form.appendChild(field);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+  </script>
+{% endblock %}

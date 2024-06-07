@@ -1,0 +1,99 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+    <style>
+        .dashboard-main {
+            height: 80vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            /* Center content vertically */
+        }
+
+        .dashboard-header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .btn-container {
+            display: flex;
+            flex-wrap: wrap;
+            /* Allow buttons to wrap to the next line if needed */
+            justify-content: center;
+            gap: 1rem;
+            /* Add space between buttons */
+            max-width: 550px;
+            /* Limit width of button container */
+            width: 100%;
+            /* Ensure container takes full width */
+        }
+
+        .btn-max-width {
+            width: 100%;
+            /* Ensure buttons take full width of container */
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+                /* Expand */
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pulse-animation {
+            animation: pulse 1.5s infinite;
+            /* Adjust animation duration as needed */
+        }
+
+        .pulse-animation.translate-middle {
+            transform: translate(-50%, -50%) !important;
+        }
+    </style>
+    <div class="container dashboard-main col-12">
+        <div class="dashboard-header">
+            <h2>Hi, {{ user_data.name }}.</h2>
+        </div>
+        <div class="btn-container">
+            <button class="btn btn-main btn-lg btn-max-width"
+                    type="button"
+                    onclick="navigateToUrl('{% url 'patientDetails' %}')">Patients List</button>
+            <button class="btn btn-main btn-lg btn-max-width"
+                    type="button"
+                    onclick="navigateToUrl('{% url 'admin_payment' %}')">Patient Payments</button>
+            <button class="btn btn-main btn-lg btn-max-width"
+                    type="button"
+                    onclick="navigateToUrl('{% url 'staffDetail' %}')">Staff List</button>
+            <button class="btn btn-main btn-lg btn-max-width"
+                    type="button"
+                    onclick="navigateToUrl('{% url 'admin_appointments:appointment_details' %}')">
+                Staff Appointments
+            </button>
+            <button class="btn btn-main btn-lg btn-max-width"
+                    type="button"
+                    onclick="navigateToUrl('{% url 'admin_staffrate' %}')">Staff Rates</button>
+            <button class="btn btn-main btn-lg btn-max-width"
+                    type="button"
+                    onclick="navigateToUrl('{% url 'admin_report' %}')">Reports</button>
+            <button class="btn btn-main btn-lg btn-max-width"
+                    type="button"
+                    onclick="navigateToUrl('{% url 'index' %}')">Account Settings</button>
+            <button class="btn btn-main btn-lg btn-max-width"
+                    type="button"
+                    onclick="navigateToUrl('{% url 'login_page' %}')">Logout</button>
+        </div>
+    </div>
+    {% comment %} {{ redirect_to_login_immediately }} {% endcomment %}
+    {% comment %} <script>
+    function FlushSession(prescriptin_assignment_id) {
+      request.session.flush();
+    } {% endcomment %}
+{% endblock %}

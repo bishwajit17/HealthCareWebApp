@@ -1,0 +1,157 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+{% load custom_filters %}
+
+    <style>
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+
+        .booking-details-text {
+            font-size: 135%;
+        }
+
+        .col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .row {
+            width: inherit;
+        }
+
+        .form-select {
+            background-color: var(--verdigris);
+        }
+
+    </style>
+    <head>
+        <meta name="csrf-token" content="{{ csrf_token }}" />
+    </head>
+    <main class="form-signin d-flex justify-content-center align-items-center w-100 mt-4">
+        <div>
+            <div class="col-md-12 main-container">
+                <h1 class="mb-4">Please confirm booking details.</h1>
+                {% if available_staff.keys %}
+                    <h3>Select a {{ selected_type }} from the dropdown.</h3>
+                {% else %}
+                    <h2>{{ selected_type|title }}</h2>
+                {% endif %}
+                <div class="mb-4">
+                    {% if available_staff.keys %}
+                    <select id="staffSelect" class="form-select form-select-lg" aria-label="Select doctor">
+                        <option value="{{ staff_id }}">{{ staff_name }}</option>
+                        {% for staff_id, staff_name in available_staff.items %}
+                            <option value="{{ staff_id }}">{{ staff_name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <select id="staffSelect" class="form-select form-select-lg" aria-label="Select doctor disabled" disabled>
+                        <option value="{{ staff_id }}">{{ staff_name }}</option>
+                    </select>
+                    {% endif %}
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h2>Date</h2>
+                        <div class="mb-4 booking-details-text">{{ selected_date }}</div>
+                    </div>
+                    <div class="col">
+                        <h2>Time</h2>
+                        <div class="mb-4 booking-details-text">{{ selected_start_time }} – {{ selected_end_time }}</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h2>Duration</h2>
+                        <div class="mb-4 booking-details-text">{{ selected_duration }} minutes</div>
+                    </div>
+                    <div class="col">
+                        <h2>Cost</h2>
+                        <div class="mb-4 booking-details-text">{{ consultation_cost|add_currency_symbol }}</div>
+                    </div>
+                </div>
+                <div class="confirm-back row">
+                    <div class="col">
+                        <button class="btn btn-main btn-lg w-100" type="button" onclick="redirectToBooking()">Back</button>
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-main btn-lg w-100"
+                            type="submit"
+                            onclick="redirectToAppointmentConfirm('{{ consultation_cost }}')">Confirm</button>
+                </div>    
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+  function redirectToAppointmentConfirm(cost) {
+    var selectedStaff = document.getElementById("staffSelect").value;
+    var csrftoken = $('meta[name="csrf-token"]').attr("content");
+
+    $.ajax({
+      url: "{% url 'patients_appointments:slot_confirmation_handling' %}",
+      type: "POST",
+      data: {
+        staff: selectedStaff,
+        cost: cost,
+        csrfmiddlewaretoken: csrftoken,
+      },
+      success: function (response) {
+        if (response.status === "success") {
+          window.location.href = response.redirect_url;
+        } else {
+          window.location.href = response.redirect_url;
+        }
+      },
+      error: function (xhr, errmsg, err) {
+        console.log("AJAX error: " + xhr.status + ": " + errmsg);
+      },
+    });
+  }
+
+  function redirectToBooking() {
+    let selectedDateStr = "{{ selected_date }}";
+    let selectedDate = new Date(selectedDateStr);
+    let dayOfWeek = selectedDate.getDay();
+    let diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    let firstDayOfWeek = new Date(selectedDate);
+    firstDayOfWeek.setDate(selectedDate.getDate() + diffToMonday);
+
+    let diffToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+    let lastDayOfWeek = new Date(selectedDate);
+    lastDayOfWeek.setDate(selectedDate.getDate() + diffToSunday);
+
+    let firstDayOfWeekStr = firstDayOfWeek.toISOString().split("T")[0];
+    let lastDayOfWeekStr = lastDayOfWeek.toISOString().split("T")[0];
+    let role = "{{ selected_type }}";
+
+    let form = document.createElement("form");
+    form.setAttribute("method", "post");
+    form.setAttribute("action", "{% url 'patients_appointments:booking' %}");
+
+    let fields = {
+      start_date: firstDayOfWeekStr,
+      end_date: lastDayOfWeekStr,
+      role: role,
+      csrfmiddlewaretoken: "{{ csrf_token }}",
+    };
+
+    for (let key in fields) {
+      let field = document.createElement("input");
+      field.setAttribute("type", "hidden");
+      field.setAttribute("name", key);
+      field.setAttribute("value", fields[key]);
+      form.appendChild(field);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  }
+    </script>
+{% endblock %}

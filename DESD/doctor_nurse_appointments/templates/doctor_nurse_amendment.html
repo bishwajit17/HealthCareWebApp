@@ -1,0 +1,187 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+{% load custom_filters %}
+
+    <style>
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+
+        .booking-details-text {
+            font-size: 135%;
+        }
+
+        .col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .row {
+            width: inherit;
+        }
+
+        .form-select {
+            background-color: var(--verdigris);
+        }
+
+    </style>
+    <head>
+        <meta name="csrf-token" content="{{ csrf_token }}" />
+    </head>
+    <main class="form-signin d-flex justify-content-center align-items-center w-100 mt-4">
+        <div>
+            <div class="col-md-12 main-container">
+                <h1 class="mb-4">Amend booking details.</h1>
+            </div>
+                <div class="row">
+                    <div class="col">
+                        <h2>Date</h2>
+                            <div class="mb-4">
+                                <input type="date" id="appointmentDate" name="appointment_date" value="{{ appointment.appointment_date }}" min="" onchange="validateDate()">
+                            </div>
+                    </div>
+                    <div class="col">
+                        <h2>Time</h2>
+                        <div class="mb-4">
+                        {% if slots %}
+                            <select id="timeslotSelect" class="form-select form-select-lg" aria-label="Select timeslot">
+                                {% for slot in slots %}
+                                    <option value="{{ slot.start_time }}-{{ slot.end_time }}" {% if not slot.is_available %}disabled{% endif %}>
+                                        {{ slot.start_time }} to {{ slot.end_time }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% else %}
+                            <h2>No available slots.</h2>
+                        {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h2>Patient</h2>
+                        <div class="mb-4 booking-details-text">{{ appointment.patient_name }}</div>
+                    </div>
+                </div>
+                <div class="confirm-back row">
+                    <div class="col">
+                        <button class="btn btn-main btn-lg w-100" type="button" onclick="navigateToUrl('{% url 'doctor_nurse_appointments:appointments_list' %}')">Back</button>
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-main btn-lg w-100"
+                            type="submit"
+                            onclick="amendConfirmation()">Confirm</button>
+                </div>    
+                </div>
+            </div>
+        </div>
+    </main>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var today = new Date();
+        var dd = String(today.getDate()).padStart(2, '0');
+        var mm = String(today.getMonth() + 1).padStart(2, '0');
+        var yyyy = today.getFullYear();
+
+        today = yyyy + '-' + mm + '-' + dd;
+        document.getElementById('appointmentDate').setAttribute('min', today);
+
+        var appointmentDate = '{{appointment.appointment_date}}';
+        document.getElementById('appointmentDate').value = appointmentDate;
+        validateDate();
+    });
+
+    function toLocalDateISOString(date) {
+        var localDate = new Date(date);
+        var timeZoneOffset = localDate.getTimezoneOffset() * 60000;
+        var adjustedDate = new Date(localDate.getTime() - timeZoneOffset);
+
+        return adjustedDate.toISOString().slice(0, 10);
+    }
+
+    function validateDate() {
+        var input = document.getElementById('appointmentDate');
+        var selectedDate = new Date(input.value);
+        var day = selectedDate.getDay();
+
+        if(day === 0 || day === 6) {
+            alert('Weekends are not available for appointments. Please select another date.');
+            input.value = ''; 
+            return;
+        }
+
+        var formattedDate = toLocalDateISOString(selectedDate);
+
+        $.ajax({
+            url: "{% url 'doctor_nurse_appointments:amend_booking_handling' %}",
+            type: "GET",
+            data: {
+                'date': formattedDate,
+            },
+            success: function(data) {
+                updateSlots(data.slots);
+            },
+            error: function(xhr, status, error) {
+                console.error("Error fetching slots", status, error);
+            }
+        });
+    }
+
+    function updateSlots(slots) {
+        var select = document.getElementById('timeslotSelect');
+        select.innerHTML = '';
+
+        slots.forEach(function(slot) {
+            var optionText = `${slot.start_time} to ${slot.end_time}`;
+
+            var option = new Option(optionText, `${slot.start_time}-${slot.end_time}`);
+
+            if (!slot.is_available) {
+                option.disabled = true;
+            }
+            select.appendChild(option);
+        });
+    }
+
+
+  function amendConfirmation() {
+    var selectedDate = document.getElementById("appointmentDate").value;
+    var timeslotSelect = document.getElementById("timeslotSelect");
+    var selectedTimeSlot = timeslotSelect.options[timeslotSelect.selectedIndex].value;
+    var appointmentID = '{{ appointment.appointment_id }}'
+    var csrftoken = $('meta[name="csrf-token"]').attr("content");
+    var [startTime, endTime] = selectedTimeSlot.split("-");
+
+    $.ajax({
+      url: "{% url 'doctor_nurse_appointments:amend_confirmation_handling' %}",
+      type: "POST",
+      data: {
+        id: appointmentID,
+        date: selectedDate,
+        start_time: startTime,
+        end_time: endTime,
+        csrfmiddlewaretoken: csrftoken,
+      },
+      success: function (response) {
+        if (response.status === "success") {
+          alert(response.message); 
+          window.location.href = "{% url 'doctor_nurse_appointments:appointments_list' %}";
+        } else {
+          alert(response.message);
+          window.location.href = "{% url 'doctor_nurse_appointments:appointments_list' %}";
+        }
+      },
+      error: function (xhr, errmsg, err) {
+        console.error("AJAX error: " + xhr.status + ": " + errmsg);
+        alert("Failed to update the appointment. Please try again.");
+        window.location.href = "{% url 'doctor_nurse_appointments:appointments_list' %}";
+      },
+    });
+  }
+    </script>
+{% endblock %}

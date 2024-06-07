@@ -1,0 +1,192 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+  <style>
+      td,
+      th {
+          text-align: center;
+          vertical-align: middle;
+      }
+
+      table,
+      label.btn,
+      button,
+      .modal-body {
+          font-size: large !important;
+      }
+
+      .eol {
+          text-align: center;
+      }
+
+      .sticky-header {
+          position: sticky;
+          top: 0;
+          background-color: white;
+          /* Optional: Set background color to match table background */
+          z-index: 1;
+          /* Optional: Ensure it's above other elements */
+      }
+
+      .bottom-buttons {
+          display: flex;
+          justify-content: space-between;
+      }
+
+      .table-container {
+          max-height: 65vh;
+          overflow-y: auto;
+      }
+
+      .btn-actions {
+          display: flex;
+          flex-wrap: nowrap;
+          justify-content: center;
+          flex-direction: row;
+          gap: 5px;
+      }
+
+      .btn-action {
+          width: 50%;
+      }
+
+      .modal-footer {
+          justify-content: space-between;
+      }
+
+      .loading-div {
+          display: none;
+          gap: 10px;
+          justify-content: center;
+      }
+
+      #deleteUserName {
+          font-weight: bold;
+      }
+  </style>
+  <main class="container">
+    <div class="main-wrapper justify-content-center">
+      <div class="d-flex">
+        <h1>Patients List.</h1>
+      </div>
+      <!-- Delete Button Modal -->
+      <form id="deleteForm" action="{% url 'deletePatient' %}" method="post">
+        <div class="modal fade"
+             id="deleteModal"
+             tabindex="-1"
+             aria-labelledby="deleteModalLabel"
+             aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Delete Account</h5>
+              </div>
+              <div class="modal-body" id="deleteModalBody">
+                Are you sure you want to delete the account of "<span id="deleteUserName"></span>"?
+                {% csrf_token %}
+                <div class="form-group">
+                  <label for="inputPassword" class="sr-only">Please confirm admin account password:</label>
+                  <input type="password"
+                         class="form-control  {% if 'incorrect' in errors %}is-invalid{% endif %}"
+                         id="inputPassword"
+                         name="password"
+                         placeholder="Password"
+                         required />
+                </div>
+                <div class="invalid-feedback">Incorrect Password, try again!</div>
+                <div>
+                  <div class="error-message mb-3">
+                    {% for message in messages %}
+                      <div class="d-flex justify-content-center align-items-center">{{ message }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div class="form-group">
+                  <input type="hidden"
+                         class="form-control"
+                         id="deleteUsername"
+                         name="username" />
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-main" data-bs-dismiss="modal">Close</button>
+                {% comment %} <a type="button" href="deleteStaff/" class="btn btn-danger">Delete Account</a> {% endcomment %}
+                <button type="submit" class="btn btn-danger">Delete Account</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+      {% if messages %}
+        {% for message in messages %}<div class="alert alert-danger" role="alert">{{ message }}</div>{% endfor %}
+      {% endif %}
+      <div class="table-container mb-4">
+        <table class="table table-hover">
+          <thead class="sticky-header">
+            <tr>
+              <th>ID</th>
+              <th>Full Name</th>
+              <th>Role</th>
+              <th>Username</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          {% for patientDetail in patientDetails %}
+            <tr class="staffRow" staffRowType="{{ patientDetail.role }}">
+              <td>#{{ patientDetail.user_id }}</td>
+              <td>{{ patientDetail.name }}</td>
+              <td>{{ patientDetail.role|title }}</td>
+              <td>{{ patientDetail.username }}</td>
+              <td class="btn-actions">
+                <a href="{% url 'editPatient' user_id=patientDetail.user_id  dates=patientDetail.date_of_birth %}"
+                   class="btn btn-main btn-action">Edit</a>
+                <a class="btn btn-main btn-action deleteBtn"
+                   data-bs-toggle="modal"
+                   data-bs-target="#deleteModal"
+                   data-name="{{ patientDetail.name }}-{{ patientDetail.username }}">Delete</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+      <div class="d-flex justify-content-between">
+        <button type="button"
+                class="btn btn-main btn-lg mb-4"
+                onclick="navigateToUrl('{% url 'admin_main' %}')">Back</button>
+        <button type="button"
+                class="btn btn-main btn-lg mb-4"
+                onclick="navigateToUrl('{% url 'extract_data' %}')">Request Extract Data</button>
+        <button type="button"
+                class="btn btn-main btn-lg mb-4"
+                onclick="navigateToUrl('{% url 'patient_signup' %}')">Add New Patient</button>
+      </div>
+    </div>
+  </main>
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+      const deleteButtons = document.querySelectorAll('.deleteBtn');
+      const deleteModalBody = document.querySelector('#deleteModalBody');
+      const deleteForm = document.getElementById('deleteForm');
+      const deleteUserName = document.getElementById('deleteUserName');
+  
+      deleteButtons.forEach(button => {
+          button.addEventListener('click', function() {
+              const dataName = this.getAttribute('data-name');
+              const [name, username] = dataName.split('-');
+              deleteUserName.textContent = name;
+              deleteUsername.value = username;
+          });
+      });
+  });
+
+  // Get the error message from the URL query parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const error_msg = urlParams.get('error_msg');
+
+  // If error message exists, display it to the user
+  if (error_msg) {
+      alert(error_msg);  // You can use any other method to display the message
+  }
+  </script>
+  <!-- Hide/Show views depending on which radio button is selected -->
+{% endblock %}

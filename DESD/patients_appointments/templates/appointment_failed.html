@@ -1,0 +1,33 @@
+{% extends "base_and_header.html" %}
+{% load static %}
+{% block content %}
+    <style>
+        main {
+            height: 80vh;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+    </style>
+    <main class="d-flex justify-content-center align-items-center w-100 mt-4">
+        <div class="col-md-12 main-container">
+            <h2>Sorry, selected time is unavailable.</h2>
+            <h2 class="mb-4">Please pick another time.</h2>
+            <div class="row">
+                <button class="btn btn-main btn-lg w-100" onclick="goBack()">Back to bookings</button>
+            </div>
+        </div>
+    </main>
+    <script>
+    function goBack() {
+        window.location.href = "{% url 'patients_appointments:booking' %}";
+    }
+    window.addEventListener("beforeunload", function (event) {
+        window.location.href = "{% url 'patient_main' %}";
+    });
+    </script>
+{% endblock %}

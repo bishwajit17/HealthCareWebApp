@@ -1,0 +1,372 @@
+{% extends "base_and_header.html" %}
+{% load custom_filters %}
+{% load static %}
+{% block content %}
+    <style>
+        td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .wtc-notification {
+            display: none;
+        }
+
+        .wtc .wtc-notification {
+            display: block;
+        }
+
+
+
+        @keyframes fadeColor {
+            0% {
+                background-color: transparent;
+            }
+
+            50% {
+                background-color: #f962a38c;
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        .wtc>button {
+            animation: fadeColor 4s linear infinite;
+            background-color: #f962a38c;
+        }
+
+        .accordion-button:hover {
+            background-color: #f962a38c !important;
+        }
+
+        .accordion-button:not(.collapsed) {
+            background-color: #f962a38c;
+        }
+
+        .accordion-body {
+            overflow-x: auto;
+        }
+
+        table,
+        label.btn,
+        button,
+        .modal-body {
+            font-size: large !important;
+        }
+
+        .btn-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .eol {
+            text-align: center;
+        }
+
+        .modal-footer,
+        .footer-buttons {
+            justify-content: space-between;
+        }
+
+        .footer-buttons {
+            display: flex;
+        }
+    </style>
+    <main>
+        <div class="container">
+            <h1>Payments & Invoices.</h1>
+            <div class="row mb-4">
+                <div class="btn-group" role="group" aria-label="grouping type">
+                    <input type="radio"
+                           class="btn-check"
+                           name="options"
+                           value="medicine"
+                           id="option1"
+                           autocomplete="off"
+                           checked />
+                    <label class="btn btn-main border-0" for="option1">Prescriptions</label>
+                    <input type="radio"
+                           class="btn-check"
+                           name="options"
+                           id="option2"
+                           value="appointments"
+                           autocomplete="off" />
+                    <label class="btn btn-main border-0" for="option2">Appointments</label>
+                </div>
+            </div>
+            <div class="accordion mb-4" id="accordionPrescriptionsStayOpen">
+                {% for patient in patients %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#panelsStayOpen-{{ patient.patient_id }}"
+                                    aria-expanded="false"
+                                    aria-controls="panelsStayOpen-{{ patient.patient_id }}">
+                                <h5>{{ patient.user.name }} – {{ patient.payment_source }}</h5>
+                            </button>
+                        </h2>
+                        <div id="panelsStayOpen-{{ patient.patient_id }}"
+                             class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center">ID</th>
+                                            <th class="text-center">Issued Date</th>
+                                            <th class="text-center">Name</th>
+                                            <th class="text-center">Quantity</th>
+                                            <th class="text-center">Cost</th>
+                                            <th class="text-center">Payment Status</th>
+                                            <th class="text-center">Manage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for prescription in prescriptions %}
+                                            {% if prescription.appointment.patient == patient %}
+                                                <tr class="prescInfo">
+                                                    <td>{{ prescription.prescription_assignment_id }}</td>
+                                                    <td>{{ prescription.issued_date }}</td>
+                                                    <td>{{ prescription.prescription.prescription_name }}</td>
+                                                    <td>{{ prescription.quantity }}</td>
+                                                    <td>{{ prescription.prescription_cost|add_currency_symbol }}</td>
+                                                    <td>
+                                                        {% if prescription.appointment.patient.payment_source == 'nhs' %}
+                                                            {% if prescription.prescription_payment_status == 0 %}
+                                                                Not Paid
+                                                            {% elif prescription.prescription_payment_status == 1 %}
+                                                                Paid
+                                                            {% else %}
+                                                                Paid by NHS
+                                                            {% endif %}
+                                                        {% else %}
+                                                            {% if prescription.prescription_payment_status == 0 %}
+                                                                Not Paid
+                                                            {% else %}
+                                                                Paid
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if prescription.appointment.patient.payment_source == 'nhs' %}
+                                                            {% if prescription.prescription_payment_status == 0 and prescription.prescription_cost > 0 %}
+                                                                <a class="btn btn-main"
+                                                                   href="{% url 'presc_mark_paid' id=prescription.prescription_assignment_id %}">
+                                                                    <i class="bi bi-file-earmark-text"></i>Send to NHS
+                                                                </a>
+                                                            {% else %}
+                                                                <button class="btn btn-main" onclick="" disabled>
+                                                                    <i class="bi bi-file-earmark-text"></i>No actions
+                                                                </button>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            {% if prescription.prescription_payment_status == 0 and prescription.prescription_cost > 0 %}
+                                                                <a class="btn btn-main"
+                                                                   href="{% url 'presc_mark_paid' id=prescription.prescription_assignment_id %}">
+                                                                    <i class="bi bi-file-earmark-text"></i>Mark as paid
+                                                                </a>
+                                                            {% else %}
+                                                                <button class="btn btn-main" onclick="" disabled>
+                                                                    <i class="bi bi-file-earmark-text"></i>No actions
+                                                                </button>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <tr>
+                                            <td colspan="7">
+                                                <button class="btn btn-main btn-reissue"
+                                                        type="button"
+                                                        data-prescription-id="{{ patient.patient_id }}">
+                                                    <i class="bi bi-plus-lg"></i>Mark all prescriptions for {{ patient.user.name }} as paid
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="accordion mb-4" id="accordionAppointmentsStayOpen">
+                {% for patient in patients %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#panelsStayOpen-{{ patient.patient_id }}"
+                                    aria-expanded="false"
+                                    aria-controls="panelsStayOpen-{{ patient.patient_id }}">
+                                <h5>{{ patient.user.name }} - {{ patient.payment_source }}</h5>
+                            </button>
+                        </h2>
+                        <div id="panelsStayOpen-{{ patient.patient_id }}"
+                             class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center">ID</th>
+                                            <th class="text-center">Staff Name</th>
+                                            <th class="text-center">Staff Type</th>
+                                            <th class="text-center">Date</th>
+                                            <th class="text-center">Time</th>
+                                            <th class="text-center">Cost</th>
+                                            <th class="text-center">Payment Status</th>
+                                            <th class="text-center">Manage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for appointment in appointments %}
+                                            {% if appointment.patient == patient %}
+                                                <tr class="prescInfo">
+                                                    <td>{{ appointment.appointment_id }}</td>
+                                                    <td>{{ appointment.staff.user.name }}</td>
+                                                    <td>{{ appointment.staff.user.role }}</td>
+                                                    <td>{{ appointment.appointment_date }}</td>
+                                                    <td>{{ appointment.appointment_start }} - {{ appointment.appointment_end }}</td>
+                                                    <td>{{ appointment.consultation_cost|add_currency_symbol }}</td>
+                                                    <td>
+                                                        {% if appointment.appointment_payment_status == 0 %}
+                                                            Not Paid
+                                                        {% elif appointment.appointment_payment_status == 1 %}
+                                                            Paid
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if appointment.patient.payment_source == 'nhs' %}
+                                                            {% if appointment.appointment_payment_status == 0 and appointment.consultation_cost > 0 %}
+                                                                <a class="btn btn-main send-to-nhs"
+                                                                   href="{% url 'appoint_mark_paid' id=appointment.appointment_id %}">
+                                                                    <i class="bi bi-file-earmark-text"></i>Send to NHS
+                                                                </a>
+                                                            {% else %}
+                                                                <button class="btn btn-main" onclick="" disabled>
+                                                                    <i class="bi bi-file-earmark-text"></i>No actions
+                                                                </button>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            {% if appointment.appointment_payment_status == 0 and appointment.consultation_cost > 0 %}
+                                                                <a class="btn btn-main mark-to-paid"
+                                                                   href="{% url 'appoint_mark_paid' id=appointment.appointment_id %}">
+                                                                    <i class="bi bi-file-earmark-text"></i>Mark as paid
+                                                                </a>
+                                                            {% else %}
+                                                                <button class="btn btn-main" onclick="" disabled>
+                                                                    <i class="bi bi-file-earmark-text"></i>No actions
+                                                                </button>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <tr>
+                                            <td colspan="8">
+                                                <button class="btn btn-main"
+                                                        type="button"
+                                                        data-appointment-id="{{ patient.patient_id }}">
+                                                    <i class="bi bi-plus-lg"></i>Mark all appointments for {{ patient.user.name }} as paid
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="footer-buttons">
+                <button class="btn btn-main btn-lg mb-4"
+                        onclick="navigateToUrl('{% url 'admin_main' %}')">Back</button>
+                <button class="btn btn-main btn-lg mb-4"
+                        onclick="navigateToUrl('{% url 'payments_extract_data' %}')">Request Extract Data</button>
+            </div>
+        </div>
+    </main>
+    <!-- Hide/Show views depending on which radio button is selected -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const medicineRadio = document.getElementById("option1");
+            const appointmentsRadio = document.getElementById("option2");
+            const medicineAccordion = document.getElementById("accordionPrescriptionsStayOpen");
+            const appointmentsAccordion = document.getElementById("accordionAppointmentsStayOpen");
+    
+            // Function to hide all divs
+            function hideAllDivs() {
+                medicineAccordion.style.display = "none";
+                appointmentsAccordion.style.display = "none";
+            }
+    
+            // Initially hide all divs except the one corresponding to the checked radio button
+            hideAllDivs();
+            if (medicineRadio.checked) {
+                medicineAccordion.style.display = "block";
+            } else if (appointmentsRadio.checked) {
+                appointmentsAccordion.style.display = "block";
+            }
+    
+            // Add event listener to radio buttons
+            medicineRadio.addEventListener("change", function() {
+                hideAllDivs();
+                if (medicineRadio.checked) {
+                    medicineAccordion.style.display = "block";
+                }
+            });
+    
+            appointmentsRadio.addEventListener("change", function() {
+                hideAllDivs();
+                if (appointmentsRadio.checked) {
+                    appointmentsAccordion.style.display = "block";
+                }
+            });
+        });
+    </script>
+    <!-- Mark all as paid function for appointments and prescriptions -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const markAllPaidButtons = document.querySelectorAll('.btn-reissue');
+
+        markAllPaidButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const patientId = this.getAttribute('data-prescription-id') || this.getAttribute('data-appointment-id');
+                if (confirm(`Are you sure you want to mark all items as paid for patient ${patientId}?`)) {
+                    // Determine the URL based on the button clicked
+                    const url = button.getAttribute('data-prescription-id') ? "{% url 'presc_mark_all_paid' %}" : "{% url 'appoint_mark_all_paid' %}";
+                    // Make an AJAX request to mark all items as paid
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': "{{ csrf_token }}",
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ patient_id: patientId }),
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // Reload the page to reflect the changes
+                            window.location.reload();
+                        } else {
+                            throw new Error('Failed to mark all items as paid.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error marking all items as paid:', error);
+                    });
+                }
+            });
+        });
+    });
+    </script>
+{% endblock %}
